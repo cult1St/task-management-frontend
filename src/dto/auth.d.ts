@@ -1,0 +1,21 @@
+export interface LoginDTO{
+    email:string;
+    password:string;
+}
+
+export interface RegisterDTO{
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    password: string;
+}
+
+interface ValidationErrors{
+    [name: string]: string;
+}
+
+export interface ErrorResponse{
+    message: string;
+    errors?: ValidationErrors;
+}

@@ -1,0 +1,23 @@
+
+:root{
+    --primary-color:#007BFF;
+    --secondary-color:#FFFFFF;
+}
+
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+.wrapper{
+    min-height: 100vh;
+    background-color: lavender;
+}
+
+input,select{
+    background-color: lavender;
+}
+
