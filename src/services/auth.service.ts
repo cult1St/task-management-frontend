@@ -3,13 +3,30 @@ import { AxiosError } from "axios";
 import { RegisterDTO, ErrorResponse, LoginDTO } from "@/dto/auth";
 
 class AuthService {
+  private saveAuthSession(payload: unknown) {
+    if (typeof window === "undefined" || !payload || typeof payload !== "object") {
+      return;
+    }
+
+    const root = payload as Record<string, unknown>;
+    const data = (root.data as Record<string, unknown> | undefined) ?? root;
+    const token = data.token as string | undefined;
+    const user = (data.user as Record<string, unknown> | undefined) ?? undefined;
+
+    if (token) {
+      sessionStorage.setItem("authToken", token);
+    }
+
+    if (user) {
+      sessionStorage.setItem("authUser", JSON.stringify(user));
+    }
+  }
+
   async login(formData : LoginDTO) {
     try {
       const response = await http.post("/auth/login", formData);
 
-      if (typeof window != "undefined") {
-        sessionStorage.setItem("authToken", response.data?.data?.token);
-      }
+      this.saveAuthSession(response.data);
 
       return response.data;
     } catch (err: unknown) {
@@ -24,9 +41,7 @@ class AuthService {
     try {
       const response = await http.post("/auth/register", formData);
 
-      if (typeof window != "undefined") {
-        sessionStorage.setItem("authToken", response.data?.data?.token);
-      }
+      this.saveAuthSession(response.data);
 
       return response.data;
     } catch (err: unknown) {
@@ -42,6 +57,7 @@ class AuthService {
       const response = await http.delete("/auth/logout");
       if (typeof window != "undefined") {
         sessionStorage.removeItem("authToken");
+        sessionStorage.removeItem("authUser");
       }
 
       return response.data;
@@ -58,7 +74,7 @@ class AuthService {
 
   async getProfile() {
     try {
-      const response = await http.get("/user/me");
+      const response = await http.get("/auth/me");
       return response.data;
     } catch (err: unknown) {
       const axiosError = err as AxiosError<{ message: string }>;

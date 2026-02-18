@@ -4,15 +4,13 @@ export interface LoginDTO{
 }
 
 export interface RegisterDTO{
-    first_name: string;
-    last_name: string;
+    fullName: string;
     email: string;
-    phone: string;
     password: string;
 }
 
-interface ValidationErrors{
-    [name: string]: string;
+export interface ValidationErrors{
+    [name: string]: string | undefined | null;
 }
 
 export interface ErrorResponse{

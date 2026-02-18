@@ -1,5 +1,5 @@
 {
-  "name": "chat-frontend",
+  "name": "task-management-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -17,6 +17,8 @@
     "boxicons": "^2.1.4",
     "laravel-echo": "^2.2.6",
     "next": "15.2.5",
+    "next-cloudinary": "^6.17.5",
+    "nprogress": "^0.2.0",
     "pusher-js": "^8.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

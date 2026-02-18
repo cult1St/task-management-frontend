@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chat App",
+  title: "Login Page - Task Management System",
   description: "Momodu Wealth chat application Login Page",
 };
 
