@@ -1,9 +1,15 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import tasksService from "@/services/tasks.service";
 import projectsService from "@/services/projects.service";
-import { CreateTaskPayload, TaskDTO, TaskPriority, TaskStatus } from "@/dto/tasks";
+import {
+  CreateTaskPayload,
+  ProjectAssigneeDTO,
+  TaskDTO,
+  TaskPriority,
+  TaskStatus,
+} from "@/dto/tasks";
 import { ProjectDTO } from "@/dto/projects";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
@@ -32,11 +38,10 @@ export default function TasksPage() {
   const { toasts, showToast, removeToast } = useToast();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
-  const assignees = [
-    { id: 1, name: "Alex Johnson" },
-    { id: 2, name: "Sara Kim" },
-    { id: 3, name: "Marcus Lee" },
-  ];
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  const [projectAssignees, setProjectAssignees] = useState<ProjectAssigneeDTO[]>([]);
+  const [isAssigneesLoading, setIsAssigneesLoading] = useState(false);
+
   const [activeFilter, setActiveFilter] = useState<"all" | "mine" | "team" | "overdue">("all");
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "ALL">("ALL");
   const [projectFilter, setProjectFilter] = useState<number | "ALL">("ALL");
@@ -52,21 +57,36 @@ export default function TasksPage() {
     assigneeId: undefined,
   });
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [taskList, projectList] = await Promise.all([
-          tasksService.list({
-            scope: activeFilter,
-            projectId: projectFilter === "ALL" ? undefined : projectFilter,
-            priority: priorityFilter === "ALL" ? undefined : priorityFilter,
-            search: undefined,
-          }),
-          projectsService.list(),
-        ]);
+  const loadProjects = async () => {
+    setIsProjectsLoading(true);
+    try {
+      const projectList = await projectsService.list();
+      setProjects(projectList || []);
+    } catch (err) {
+      const message =
+        (err as { message?: string })?.message || "Failed to load projects.";
+      showToast(message, "error");
+    } finally {
+      setIsProjectsLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    void loadProjects();
+    // load once for options and filters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const taskList = await tasksService.list({
+          scope: activeFilter,
+          projectId: projectFilter === "ALL" ? undefined : projectFilter,
+          priority: priorityFilter === "ALL" ? undefined : priorityFilter,
+          search: undefined,
+        });
         setTasks(taskList || []);
-        setProjects(projectList || []);
       } catch (err) {
         const message =
           (err as { message?: string })?.message || "Failed to load tasks.";
@@ -74,8 +94,81 @@ export default function TasksPage() {
       }
     };
 
-    void load();
+    void loadTasks();
   }, [activeFilter, priorityFilter, projectFilter, showToast]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    if (!projects.length) {
+      void loadProjects();
+    }
+    // refresh project options when opening modal and list is empty
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, projects.length]);
+
+  useEffect(() => {
+    if (projectFilter === "ALL") return;
+    const exists = projects.some((project) => project.id === projectFilter);
+    if (!exists) {
+      setProjectFilter("ALL");
+    }
+  }, [projectFilter, projects]);
+
+  useEffect(() => {
+    if (!draftTask.projectId) return;
+    const exists = projects.some((project) => project.id === draftTask.projectId);
+    if (!exists) {
+      setDraftTask((prev) => ({
+        ...prev,
+        projectId: undefined,
+        assigneeId: undefined,
+      }));
+      setProjectAssignees([]);
+    }
+  }, [draftTask.projectId, projects]);
+
+  useEffect(() => {
+    const projectId = draftTask.projectId;
+
+    if (!projectId) {
+      setProjectAssignees([]);
+      return;
+    }
+
+    const loadAssignees = async () => {
+      setIsAssigneesLoading(true);
+      try {
+        const assignees = await tasksService.listProjectAssignees(projectId);
+        setProjectAssignees(assignees || []);
+      } catch {
+        try {
+          const members = await projectsService.listMembers(projectId, "ACCEPTED");
+          const mapped = (members || []).map((member) => ({
+            id: member.userId,
+            name:
+              member.fullName ||
+              member.full_name ||
+              member.name ||
+              member.email ||
+              `User ${member.userId}`,
+            email: member.email,
+            role: member.role,
+          }));
+          setProjectAssignees(mapped);
+        } catch (err) {
+          const message =
+            (err as { message?: string })?.message ||
+            "Could not load project collaborators.";
+          showToast(message, "error");
+          setProjectAssignees([]);
+        }
+      } finally {
+        setIsAssigneesLoading(false);
+      }
+    };
+
+    void loadAssignees();
+  }, [draftTask.projectId, showToast]);
 
   const groupedTasks = useMemo(() => {
     return tasks.reduce<Record<TaskStatus, TaskDTO[]>>(
@@ -99,6 +192,11 @@ export default function TasksPage() {
       return;
     }
 
+    if (!draftTask.projectId) {
+      showToast("Select a project first.", "error");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const created = await tasksService.create(draftTask);
@@ -115,6 +213,7 @@ export default function TasksPage() {
         projectId: undefined,
         assigneeId: undefined,
       });
+      setProjectAssignees([]);
     } catch (err) {
       const message =
         (err as { message?: string })?.message || "Could not create task.";
@@ -197,14 +296,14 @@ export default function TasksPage() {
             data-tip="Kanban"
             onClick={() => setView("kanban")}
           >
-            ⊞
+            KB
           </button>
           <button
             className={`view-btn ${view === "list" ? "active" : ""}`}
             data-tip="List"
             onClick={() => setView("list")}
           >
-            ≡
+            LS
           </button>
         </div>
 
@@ -275,12 +374,8 @@ export default function TasksPage() {
                       </div>
                     ) : null}
                     <div className="kanban-task-footer">
-                      <span className="kanban-task-due">
-                        📅 {task.dueDate || "No due date"}
-                      </span>
-                      <div className="dp-avatar avatar-a">
-                        {task.assigneeInitials || "NA"}
-                      </div>
+                      <span className="kanban-task-due">Due: {task.dueDate || "No due date"}</span>
+                      <div className="dp-avatar avatar-a">{task.assigneeInitials || "NA"}</div>
                     </div>
                   </div>
                 ))}
@@ -305,7 +400,7 @@ export default function TasksPage() {
                     <span className={`task-priority ${PRIORITY_CLASS[task.priority]}`}>
                       {task.priority}
                     </span>
-                    <span className="task-due">📅 {task.dueDate || "No due date"}</span>
+                    <span className="task-due">Due: {task.dueDate || "No due date"}</span>
                   </div>
                 </div>
                 <button
@@ -326,7 +421,7 @@ export default function TasksPage() {
             <div className="modal-header">
               <h3 className="modal-title">Create New Task</h3>
               <button className="modal-close" onClick={() => setIsModalOpen(false)}>
-                ×
+                x
               </button>
             </div>
             <div className="modal-body">
@@ -386,49 +481,83 @@ export default function TasksPage() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Assign To</label>
-                  <select
-                    className="form-input select-input"
-                    value={draftTask.assigneeId || ""}
-                    onChange={(event) =>
-                      setDraftTask((prev) => ({
-                        ...prev,
-                        assigneeId: event.target.value
-                          ? Number(event.target.value)
-                          : undefined,
-                      }))
-                    }
-                  >
-                    <option value="">Select assignee</option>
-                    {assignees.map((assignee) => (
-                      <option key={assignee.id} value={assignee.id}>
-                        {assignee.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Project</label>
+                  <label className="form-label">Project *</label>
                   <select
                     className="form-input select-input"
                     value={draftTask.projectId || ""}
+                    disabled={isProjectsLoading}
                     onChange={(event) =>
                       setDraftTask((prev) => ({
                         ...prev,
                         projectId: event.target.value
                           ? Number(event.target.value)
                           : undefined,
+                        assigneeId: undefined,
                       }))
                     }
                   >
-                    <option value="">Select project</option>
+                    <option value="">
+                      {isProjectsLoading ? "Loading projects..." : "Select project"}
+                    </option>
                     {projects.map((project) => (
                       <option key={project.id} value={project.id}>
                         {project.name}
                       </option>
                     ))}
                   </select>
+                  {!isProjectsLoading && !projects.length ? (
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--slate-400)",
+                        marginTop: "0.4rem",
+                      }}
+                    >
+                      No projects found. Create a project first, then add tasks under it.
+                    </div>
+                  ) : null}
                 </div>
+
+                {draftTask.projectId ? (
+                  <div className="form-group">
+                    <label className="form-label">Assign To</label>
+                    <select
+                      className="form-input select-input"
+                      value={draftTask.assigneeId || ""}
+                      onChange={(event) =>
+                        setDraftTask((prev) => ({
+                          ...prev,
+                          assigneeId: event.target.value
+                            ? Number(event.target.value)
+                            : undefined,
+                        }))
+                      }
+                      disabled={isAssigneesLoading}
+                    >
+                      <option value="">
+                        {isAssigneesLoading
+                          ? "Loading collaborators..."
+                          : "Unassigned"}
+                      </option>
+                      {projectAssignees.map((assignee) => (
+                        <option key={assignee.id} value={assignee.id}>
+                          {assignee.name}
+                        </option>
+                      ))}
+                    </select>
+                    {!isAssigneesLoading && !projectAssignees.length ? (
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--slate-400)",
+                          marginTop: "0.4rem",
+                        }}
+                      >
+                        No collaborators in this project yet. Invite from Projects page.
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
             <div className="modal-footer">

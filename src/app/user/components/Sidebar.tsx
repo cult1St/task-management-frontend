@@ -37,11 +37,17 @@ export default function Sidebar({
     },
     {
       section: "Team",
-      items: [{ href: "/user/team", icon: "👥", label: "Team Members" }],
+      items: [
+        { href: "/user/team", icon: "👥", label: "Team Members" },
+        { href: "/user/invitations", icon: "✉", label: "Invitations" },
+      ],
     },
     {
       section: "Account",
-      items: [{ href: "/user/settings", icon: "⚙", label: "Settings" }],
+      items: [
+        { href: "/user/notifications", icon: "🔔", label: "Notifications" },
+        { href: "/user/settings", icon: "⚙", label: "Settings" },
+      ],
     },
   ];
 

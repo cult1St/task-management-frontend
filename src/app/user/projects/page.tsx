@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import projectsService from "@/services/projects.service";
 import { CreateProjectPayload, ProjectDTO, ProjectStatus } from "@/dto/projects";
+import { ProjectInviteUserOptionDTO } from "@/dto/invitations";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 
@@ -24,6 +25,10 @@ const STATUS_CLASS: Record<ProjectStatus, string> = {
   ARCHIVED: "status-paused",
 };
 
+function resolveUserName(user: ProjectInviteUserOptionDTO) {
+  return user.fullName || user.full_name || user.name || user.email;
+}
+
 export default function ProjectsPage() {
   const { toasts, showToast, removeToast } = useToast();
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
@@ -31,14 +36,24 @@ export default function ProjectsPage() {
     "ALL"
   );
   const [search, setSearch] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSavingProject, setIsSavingProject] = useState(false);
   const [draftProject, setDraftProject] = useState<CreateProjectPayload>({
     name: "",
     description: "",
     status: "ACTIVE",
     dueDate: "",
   });
+
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | "">("");
+  const [selectedUserId, setSelectedUserId] = useState<number | "">("");
+  const [inviteRole, setInviteRole] = useState("Contributor");
+  const [userQuery, setUserQuery] = useState("");
+  const [userOptions, setUserOptions] = useState<ProjectInviteUserOptionDTO[]>([]);
+  const [isUserSearchLoading, setIsUserSearchLoading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -54,6 +69,36 @@ export default function ProjectsPage() {
     void load();
   }, [filter, showToast]);
 
+  useEffect(() => {
+    if (!isInviteModalOpen) return;
+
+    const query = userQuery.trim();
+    if (query.length < 2) {
+      setUserOptions([]);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      void (async () => {
+        setIsUserSearchLoading(true);
+        try {
+          const users = await projectsService.searchUsers(query);
+          setUserOptions(users || []);
+        } catch (err) {
+          const message =
+            (err as { message?: string })?.message ||
+            "Could not search users right now.";
+          showToast(message, "error");
+          setUserOptions([]);
+        } finally {
+          setIsUserSearchLoading(false);
+        }
+      })();
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [isInviteModalOpen, userQuery, showToast]);
+
   const filteredProjects = useMemo(() => {
     if (!search.trim()) return projects;
     return projects.filter((project) =>
@@ -61,27 +106,64 @@ export default function ProjectsPage() {
     );
   }, [projects, search]);
 
+  const openInviteModal = (projectId?: number) => {
+    setSelectedProjectId(projectId || "");
+    setSelectedUserId("");
+    setInviteRole("Contributor");
+    setUserQuery("");
+    setUserOptions([]);
+    setIsInviteModalOpen(true);
+  };
+
   const handleCreateProject = async () => {
     if (!draftProject.name.trim()) {
       showToast("Project name is required.", "error");
       return;
     }
 
-    setIsSaving(true);
+    setIsSavingProject(true);
     try {
       const created = await projectsService.create(draftProject);
       if (created) {
         setProjects((prev) => [created, ...prev]);
         showToast("Project created!", "success");
       }
-      setIsModalOpen(false);
+      setIsCreateModalOpen(false);
       setDraftProject({ name: "", description: "", status: "ACTIVE", dueDate: "" });
     } catch (err) {
       const message =
         (err as { message?: string })?.message || "Could not create project.";
       showToast(message, "error");
     } finally {
-      setIsSaving(false);
+      setIsSavingProject(false);
+    }
+  };
+
+  const handleInvite = async () => {
+    if (!selectedProjectId) {
+      showToast("Select a project.", "error");
+      return;
+    }
+
+    if (!selectedUserId) {
+      showToast("Select a user to invite.", "error");
+      return;
+    }
+
+    setIsSendingInvite(true);
+    try {
+      await projectsService.inviteMember(selectedProjectId, {
+        invitedUserId: selectedUserId,
+        role: inviteRole || undefined,
+      });
+      showToast("Invitation sent successfully.", "success");
+      setIsInviteModalOpen(false);
+    } catch (err) {
+      const message =
+        (err as { message?: string })?.message || "Could not send invitation.";
+      showToast(message, "error");
+    } finally {
+      setIsSendingInvite(false);
     }
   };
 
@@ -91,7 +173,7 @@ export default function ProjectsPage() {
 
       <div className="page-header">
         <h1 className="page-title">Projects</h1>
-        <p className="page-subtitle">Active projects across your workspace</p>
+        <p className="page-subtitle">Create projects, invite collaborators, and track progress</p>
       </div>
 
       <div className="tasks-toolbar">
@@ -113,7 +195,7 @@ export default function ProjectsPage() {
         </div>
 
         <div className="topbar-search" style={{ maxWidth: 220 }}>
-          <span className="topbar-search-icon">🔍</span>
+          <span className="topbar-search-icon">S</span>
           <input
             type="text"
             placeholder="Search projects..."
@@ -123,10 +205,15 @@ export default function ProjectsPage() {
         </div>
 
         <button
-          className="btn btn-primary btn-sm"
+          className="btn btn-secondary btn-sm"
           style={{ marginLeft: "auto" }}
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => openInviteModal()}
+          disabled={!projects.length}
         >
+          Invite User
+        </button>
+
+        <button className="btn btn-primary btn-sm" onClick={() => setIsCreateModalOpen(true)}>
           + New Project
         </button>
       </div>
@@ -135,9 +222,9 @@ export default function ProjectsPage() {
         {filteredProjects.map((project) => (
           <div key={project.id} className="project-card c1">
             <div className="project-header">
-              <div className="project-icon bg-teal">📁</div>
+              <div className="project-icon bg-teal">PRJ</div>
               <span className={`project-status ${STATUS_CLASS[project.status]}`}>
-                ● {STATUS_LABELS[project.status]}
+                * {STATUS_LABELS[project.status]}
               </span>
             </div>
             <div className="project-name">{project.name}</div>
@@ -149,7 +236,7 @@ export default function ProjectsPage() {
             <div className="progress-bar">
               <div className="progress-fill fill-teal" style={{ width: `${project.progress}%` }} />
             </div>
-            <div className="project-footer">
+            <div className="project-footer" style={{ alignItems: "center" }}>
               <div className="project-team">
                 {(project.teamInitials || ["TF"]).map((member, idx) => (
                   <div key={`${project.id}-${member}-${idx}`} className="project-team-avatar">
@@ -157,19 +244,24 @@ export default function ProjectsPage() {
                   </div>
                 ))}
               </div>
-              <span className="project-due">📅 {project.dueDate || "No due date"}</span>
+              <span className="project-due">Due: {project.dueDate || "No due date"}</span>
+            </div>
+            <div style={{ marginTop: "0.9rem" }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => openInviteModal(project.id)}>
+                Invite to Project
+              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {isModalOpen ? (
+      {isCreateModalOpen ? (
         <div className="modal-backdrop open">
           <div className="modal">
             <div className="modal-header">
               <h3 className="modal-title">Create New Project</h3>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
-                ×
+              <button className="modal-close" onClick={() => setIsCreateModalOpen(false)}>
+                x
               </button>
             </div>
             <div className="modal-body">
@@ -234,15 +326,104 @@ export default function ProjectsPage() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
+              <button className="btn btn-secondary" onClick={() => setIsCreateModalOpen(false)}>
                 Cancel
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreateProject}
-                disabled={isSaving}
+                disabled={isSavingProject}
               >
-                {isSaving ? "Creating..." : "Create Project"}
+                {isSavingProject ? "Creating..." : "Create Project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isInviteModalOpen ? (
+        <div className="modal-backdrop open">
+          <div className="modal">
+            <div className="modal-header">
+              <h3 className="modal-title">Invite User to Project</h3>
+              <button className="modal-close" onClick={() => setIsInviteModalOpen(false)}>
+                x
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Project *</label>
+                <select
+                  className="form-input select-input"
+                  value={selectedProjectId}
+                  onChange={(event) =>
+                    setSelectedProjectId(
+                      event.target.value ? Number(event.target.value) : ""
+                    )
+                  }
+                >
+                  <option value="">Select project</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Search existing users *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={userQuery}
+                  onChange={(event) => setUserQuery(event.target.value)}
+                  placeholder="Type at least 2 characters"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Select user *</label>
+                <select
+                  className="form-input select-input"
+                  value={selectedUserId}
+                  onChange={(event) =>
+                    setSelectedUserId(event.target.value ? Number(event.target.value) : "")
+                  }
+                  disabled={isUserSearchLoading || userQuery.trim().length < 2}
+                >
+                  <option value="">
+                    {userQuery.trim().length < 2
+                      ? "Search users first"
+                      : isUserSearchLoading
+                      ? "Searching users..."
+                      : "Select user"}
+                  </option>
+                  {userOptions.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {resolveUserName(user)} ({user.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Role in project</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={inviteRole}
+                  onChange={(event) => setInviteRole(event.target.value)}
+                  placeholder="Contributor"
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setIsInviteModalOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleInvite} disabled={isSendingInvite}>
+                {isSendingInvite ? "Sending..." : "Send Invite"}
               </button>
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
+import Notifications from "./components/Notifications";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/context/auth-context";
 
@@ -147,7 +148,7 @@ export default function UserLayoutClient({
               + New Task
             </button>
 
-            <button className="notif-btn">🔔</button>
+            <Notifications />
           </div>
         </div>
 

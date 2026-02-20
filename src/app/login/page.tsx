@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { LoginDTO, ErrorResponse, ValidationErrors } from "@/dto/auth";
 import authService from "@/services/auth.service";
 import { useAuth } from "@/context/auth-context";
-import Swal from "sweetalert2";
+import ToastContainer from "@/components/ToastContainer";
+import { useToast } from "@/hooks/useToast";
 
 export default function LoginPage() {
   const router = useRouter();
   const { refreshUser } = useAuth();
+  const { toasts, showToast, removeToast } = useToast();
 
   const [formData, setFormData] = useState<LoginDTO>({
     email: "",
@@ -49,13 +51,7 @@ export default function LoginPage() {
     try {
       await authService.login(formData);
 
-      await Swal.fire({
-        icon: "success",
-        title: "Login Successful",
-        text: "Redirecting to Dashboard...",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showToast("Login successful. Redirecting...", "success");
 
       await refreshUser();
       router.push("/user/dashboard");
@@ -67,11 +63,7 @@ export default function LoginPage() {
       }
 
       if (errData?.message) {
-        Swal.fire({
-          icon: "error",
-          title: "Login Failed",
-          text: errData.message,
-        });
+        showToast(errData.message, "error");
       }
     } finally {
       setIsLoading(false);
@@ -80,6 +72,7 @@ export default function LoginPage() {
 
   return (
     <div id="page-login">
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
       <div className="auth-card">
         <div className="auth-header">
           <h1 className="auth-title">Welcome back</h1>

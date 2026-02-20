@@ -214,3 +214,38 @@ TeamMemberDTO:
 ```
 { "id": 1, "name": "string", "role": "string", "status": "ONLINE|AWAY|OFFLINE", "tasksCount": 0, "projectsCount": 0, "completionRate": 0, "initials": "AJ", "avatarUrl": "string?" }
 ```
+
+
+
+
+Invitations
+
+POST /projects/:projectId/invitations
+body: { invitedUserId, role }
+GET /invitations/received?status=pending
+GET /invitations/sent?projectId=...
+PATCH /invitations/:invitationId/respond
+body: { action: "accept" | "reject" }
+DELETE /invitations/:invitationId (cancel by inviter)
+Tasks
+
+POST /tasks
+validate projectId membership and optional assigneeId membership
+GET /tasks?projectId=...
+PATCH /tasks/:taskId
+GET /projects/:projectId/assignees (accepted collaborators; can also reuse members endpoint)
+Notifications
+
+GET /notifications?unreadOnly=false&limit=20
+GET /notifications/unread-count
+PATCH /notifications/:id/read
+PATCH /notifications/read-all
+
+Project collaborators
+
+GET /projects/:projectId/members?status=accepted
+DELETE /projects/:projectId/members/:userId remove collaborator
+User search for inviting
+
+GET /users/search?q=sam (existing users only)
+Invitations

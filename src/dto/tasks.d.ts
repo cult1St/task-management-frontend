@@ -15,6 +15,14 @@ export interface TaskDTO {
   progress?: number;
 }
 
+export interface ProjectAssigneeDTO {
+  id: number;
+  name: string;
+  email?: string;
+  role?: string;
+  initials?: string;
+}
+
 export interface CreateTaskPayload {
   title: string;
   description?: string;

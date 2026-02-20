@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Swal from "sweetalert2";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CldUploadWidget } from "next-cloudinary";
 import { useAuth } from "@/context/auth-context";
 import { AppearanceSettingsPayload, IntegrationSettingsPayload, NotificationPreferencesPayload, SecuritySettingsPayload, UserProfilePayload, WorkspaceSettingsPayload } from "@/dto/user";
 import userService from "@/services/user.service";
+import ToastContainer from "@/components/ToastContainer";
+import { useToast } from "@/hooks/useToast";
 
 type SettingsTab =
   | "profile"
@@ -32,10 +33,12 @@ interface LoadedUserShape {
 export default function SettingsPage() {
   const router = useRouter();
   const { user, logout, refreshUser } = useAuth();
+  const { toasts, showToast, removeToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const bodyOverflowRef = useRef<string | null>(null);
 
   const [profile, setProfile] = useState<UserProfilePayload>({
     fullName: "",
@@ -176,22 +179,42 @@ export default function SettingsPage() {
     void bootstrap();
   }, [user?.email, user?.fullName, user?.full_name, user?.name, user?.role]);
 
+  useEffect(() => {
+    return () => {
+      if (typeof document !== "undefined" && bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+      }
+    };
+  }, []);
+
+  const lockScroll = () => {
+    if (typeof document === "undefined") return;
+    if (bodyOverflowRef.current === null) {
+      bodyOverflowRef.current = document.body.style.overflow || "";
+    }
+    document.body.style.overflow = "hidden";
+  };
+
+  const unlockScroll = () => {
+    if (typeof document === "undefined") return;
+    if (bodyOverflowRef.current !== null) {
+      document.body.style.overflow = bodyOverflowRef.current;
+      bodyOverflowRef.current = null;
+    } else {
+      document.body.style.overflow = "";
+    }
+  };
+
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
       await userService.updateProfile(profile);
       await refreshUser();
-      await Swal.fire({
-        icon: "success",
-        title: "Profile Updated",
-        text: "Your profile changes were saved.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showToast("Profile updated.", "success");
     } catch (err) {
       const message =
         (err as { message?: string })?.message || "Could not save profile.";
-      await Swal.fire({ icon: "error", title: "Save Failed", text: message });
+      showToast(message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -207,22 +230,12 @@ export default function SettingsPage() {
       });
       await refreshUser();
 
-      await Swal.fire({
-        icon: "success",
-        title: "Avatar Updated",
-        text: "Your profile image was uploaded successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showToast("Profile image updated.", "success");
     } catch (err) {
       const message =
         (err as { message?: string })?.message ||
         "Could not upload profile image.";
-      await Swal.fire({
-        icon: "error",
-        title: "Upload Failed",
-        text: message,
-      });
+      showToast(message, "error");
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -237,18 +250,12 @@ export default function SettingsPage() {
         avatarUrl: "",
       });
       await refreshUser();
-      await Swal.fire({
-        icon: "success",
-        title: "Avatar Removed",
-        text: "Profile image removed.",
-        timer: 1300,
-        showConfirmButton: false,
-      });
+      showToast("Profile image removed.", "success");
     } catch (err) {
       const message =
         (err as { message?: string })?.message ||
         "Could not remove profile image.";
-      await Swal.fire({ icon: "error", title: "Remove Failed", text: message });
+      showToast(message, "error");
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -258,18 +265,12 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       await userService.updateNotifications(notifications);
-      await Swal.fire({
-        icon: "success",
-        title: "Notifications Saved",
-        text: "Notification preferences updated.",
-        timer: 1400,
-        showConfirmButton: false,
-      });
+      showToast("Notification preferences updated.", "success");
     } catch (err) {
       const message =
         (err as { message?: string })?.message ||
         "Could not save notification settings.";
-      await Swal.fire({ icon: "error", title: "Save Failed", text: message });
+      showToast(message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -279,18 +280,12 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       await userService.updateSecurity(security);
-      await Swal.fire({
-        icon: "success",
-        title: "Security Saved",
-        text: "Security settings updated.",
-        timer: 1400,
-        showConfirmButton: false,
-      });
+      showToast("Security settings updated.", "success");
     } catch (err) {
       const message =
         (err as { message?: string })?.message ||
         "Could not save security settings.";
-      await Swal.fire({ icon: "error", title: "Save Failed", text: message });
+      showToast(message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -300,18 +295,12 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       await userService.updateAppearance(appearance);
-      await Swal.fire({
-        icon: "success",
-        title: "Appearance Saved",
-        text: "Appearance preferences updated.",
-        timer: 1400,
-        showConfirmButton: false,
-      });
+      showToast("Appearance preferences updated.", "success");
     } catch (err) {
       const message =
         (err as { message?: string })?.message ||
         "Could not save appearance settings.";
-      await Swal.fire({ icon: "error", title: "Save Failed", text: message });
+      showToast(message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -321,18 +310,12 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       await userService.updateIntegrations(integrations);
-      await Swal.fire({
-        icon: "success",
-        title: "Integrations Saved",
-        text: "Integration settings updated.",
-        timer: 1400,
-        showConfirmButton: false,
-      });
+      showToast("Integration settings updated.", "success");
     } catch (err) {
       const message =
         (err as { message?: string })?.message ||
         "Could not save integration settings.";
-      await Swal.fire({ icon: "error", title: "Save Failed", text: message });
+      showToast(message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -342,18 +325,12 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       await userService.updateWorkspace(workspace);
-      await Swal.fire({
-        icon: "success",
-        title: "Workspace Updated",
-        text: "Workspace name saved.",
-        timer: 1400,
-        showConfirmButton: false,
-      });
+      showToast("Workspace name saved.", "success");
     } catch (err) {
       const message =
         (err as { message?: string })?.message ||
         "Could not update workspace name.";
-      await Swal.fire({ icon: "error", title: "Save Failed", text: message });
+      showToast(message, "error");
     } finally {
       setIsSaving(false);
     }
@@ -366,6 +343,7 @@ export default function SettingsPage() {
 
   return (
     <div>
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
       <div className="page-header">
         <h1 className="page-title">Settings</h1>
         <p className="page-subtitle">Manage your account preferences</p>
@@ -460,28 +438,28 @@ export default function SettingsPage() {
                       }}
                       uploadPreset={uploadPreset}
                       config={{ cloud: { cloudName } }}
+                      onOpen={lockScroll}
+                      onClose={unlockScroll}
                       onQueuesStart={() => setIsUploadingAvatar(true)}
                       onSuccess={(result) => {
                         const payload = result as { info?: { secure_url?: string } };
                         const secureUrl = payload?.info?.secure_url;
                         if (secureUrl) {
                           void handleAvatarUploaded(secureUrl);
+                          unlockScroll();
                         } else {
                           setIsUploadingAvatar(false);
-                          void Swal.fire({
-                            icon: "error",
-                            title: "Upload Failed",
-                            text: "Cloudinary did not return a valid image URL.",
-                          });
+                          showToast(
+                            "Cloudinary did not return a valid image URL.",
+                            "error"
+                          );
+                          unlockScroll();
                         }
                       }}
                       onError={() => {
                         setIsUploadingAvatar(false);
-                        void Swal.fire({
-                          icon: "error",
-                          title: "Upload Failed",
-                          text: "Could not upload image to Cloudinary.",
-                        });
+                        showToast("Could not upload image to Cloudinary.", "error");
+                        unlockScroll();
                       }}
                     >
                       {({ open }) => (

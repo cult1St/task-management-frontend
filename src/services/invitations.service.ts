@@ -2,19 +2,17 @@ import { AxiosError } from "axios";
 import http from "./http";
 import { ErrorResponse } from "@/dto/auth";
 import {
-  CreateTaskPayload,
-  ProjectAssigneeDTO,
-  TaskDTO,
-  TaskFilters,
-  UpdateTaskPayload,
-} from "@/dto/tasks";
+  InvitationFilters,
+  ProjectInvitationDTO,
+  RespondToInvitationPayload,
+} from "@/dto/invitations";
 
 interface SuccessResponse<T> {
   message: string;
   data: T;
 }
 
-class TasksService {
+class InvitationsService {
   private handleError(err: unknown): never {
     const axiosError = err as AxiosError<ErrorResponse>;
     const data = axiosError.response?.data;
@@ -29,30 +27,34 @@ class TasksService {
     };
   }
 
-  async list(filters?: TaskFilters) {
+  async listReceived(filters?: InvitationFilters) {
     try {
-      const response = await http.get<SuccessResponse<TaskDTO[]>>("/tasks", {
-        params: filters,
-      });
+      const response = await http.get<SuccessResponse<ProjectInvitationDTO[]>>(
+        "/invitations/received",
+        { params: filters }
+      );
       return response.data.data;
     } catch (err) {
       this.handleError(err);
     }
   }
 
-  async create(payload: CreateTaskPayload) {
+  async listSent(filters?: InvitationFilters) {
     try {
-      const response = await http.post<SuccessResponse<TaskDTO>>("/tasks", payload);
+      const response = await http.get<SuccessResponse<ProjectInvitationDTO[]>>(
+        "/invitations/sent",
+        { params: filters }
+      );
       return response.data.data;
     } catch (err) {
       this.handleError(err);
     }
   }
 
-  async update(taskId: number, payload: UpdateTaskPayload) {
+  async respond(invitationId: number, payload: RespondToInvitationPayload) {
     try {
-      const response = await http.patch<SuccessResponse<TaskDTO>>(
-        `/tasks/${taskId}`,
+      const response = await http.patch<SuccessResponse<ProjectInvitationDTO>>(
+        `/invitations/${invitationId}/respond`,
         payload
       );
       return response.data.data;
@@ -61,21 +63,10 @@ class TasksService {
     }
   }
 
-  async remove(taskId: number) {
+  async cancel(invitationId: number) {
     try {
       const response = await http.delete<SuccessResponse<{ id: number }>>(
-        `/tasks/${taskId}`
-      );
-      return response.data.data;
-    } catch (err) {
-      this.handleError(err);
-    }
-  }
-
-  async listProjectAssignees(projectId: number) {
-    try {
-      const response = await http.get<SuccessResponse<ProjectAssigneeDTO[]>>(
-        `/projects/${projectId}/assignees`
+        `/invitations/${invitationId}`
       );
       return response.data.data;
     } catch (err) {
@@ -84,5 +75,5 @@ class TasksService {
   }
 }
 
-const tasksService = new TasksService();
-export default tasksService;
+const invitationsService = new InvitationsService();
+export default invitationsService;

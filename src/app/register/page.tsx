@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import authService from "@/services/auth.service";
 import { RegisterDTO, ErrorResponse, ValidationErrors } from "@/dto/auth";
 import { useAuth } from "@/context/auth-context";
-import Swal from "sweetalert2";
+import ToastContainer from "@/components/ToastContainer";
+import { useToast } from "@/hooks/useToast";
 
 const RegisterPage = () => {
   const router = useRouter();
   const { refreshUser } = useAuth();
+  const { toasts, showToast, removeToast } = useToast();
 
   const [formData, setFormData] = useState<RegisterDTO>({
     fullName: "",
@@ -45,13 +47,7 @@ const RegisterPage = () => {
     try {
       await authService.register(formData);
 
-      await Swal.fire({
-        icon: "success",
-        title: "Registration Successful",
-        text: "Redirecting to Dashboard...",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      showToast("Registration successful. Redirecting...", "success");
 
       await refreshUser();
       router.push("/user/dashboard");
@@ -63,11 +59,7 @@ const RegisterPage = () => {
       }
 
       if (errData?.message) {
-        Swal.fire({
-          icon: "error",
-          title: "Registration Failed",
-          text: errData.message,
-        });
+        showToast(errData.message, "error");
       }
     } finally {
       setIsLoading(false);
@@ -76,6 +68,7 @@ const RegisterPage = () => {
 
   return (
     <div id="page-signup">
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
       <div className="auth-card" style={{ maxWidth: 520 }}>
         <div className="auth-header">
           <h1 className="auth-title">Create your account</h1>
