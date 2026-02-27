@@ -1,4 +1,4 @@
-export type InvitationStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELED";
+export type InvitationStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "REMOVED";
 
 export interface ProjectInviteUserOptionDTO {
   id: number;
@@ -46,5 +46,5 @@ export interface InvitationFilters {
 }
 
 export interface RespondToInvitationPayload {
-  action: "accept" | "reject";
+  action: "ACCEPT" | "REJECT";
 }

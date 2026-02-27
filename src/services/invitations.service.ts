@@ -13,6 +13,12 @@ interface SuccessResponse<T> {
 }
 
 class InvitationsService {
+  private isMissingEndpoint(err: unknown): boolean {
+    const axiosError = err as AxiosError<ErrorResponse>;
+    const status = axiosError.response?.status;
+    return status === 404 || status === 405;
+  }
+
   private handleError(err: unknown): never {
     const axiosError = err as AxiosError<ErrorResponse>;
     const data = axiosError.response?.data;
@@ -27,7 +33,7 @@ class InvitationsService {
     };
   }
 
-  async listReceived(filters?: InvitationFilters) {
+  async listReceived(filters?: InvitationFilters): Promise<ProjectInvitationDTO[]> {
     try {
       const response = await http.get<SuccessResponse<ProjectInvitationDTO[]>>(
         "/invitations/received",
@@ -39,7 +45,7 @@ class InvitationsService {
     }
   }
 
-  async listSent(filters?: InvitationFilters) {
+  async listSent(filters?: InvitationFilters): Promise<ProjectInvitationDTO[]> {
     try {
       const response = await http.get<SuccessResponse<ProjectInvitationDTO[]>>(
         "/invitations/sent",
@@ -51,7 +57,10 @@ class InvitationsService {
     }
   }
 
-  async respond(invitationId: number, payload: RespondToInvitationPayload) {
+  async respond(
+    invitationId: number,
+    payload: RespondToInvitationPayload
+  ): Promise<ProjectInvitationDTO> {
     try {
       const response = await http.patch<SuccessResponse<ProjectInvitationDTO>>(
         `/invitations/${invitationId}/respond`,
@@ -63,13 +72,51 @@ class InvitationsService {
     }
   }
 
-  async cancel(invitationId: number) {
+  async accept(invitationId: number): Promise<ProjectInvitationDTO> {
     try {
-      const response = await http.delete<SuccessResponse<{ id: number }>>(
-        `/invitations/${invitationId}`
+      const response = await http.patch<SuccessResponse<ProjectInvitationDTO>>(
+        `/invitations/${invitationId}/accept`
       );
       return response.data.data;
     } catch (err) {
+      if (this.isMissingEndpoint(err)) {
+        return this.respond(invitationId, { action: "ACCEPT" });
+      }
+      this.handleError(err);
+    }
+  }
+
+  async reject(invitationId: number): Promise<ProjectInvitationDTO> {
+    try {
+      const response = await http.patch<SuccessResponse<ProjectInvitationDTO>>(
+        `/invitations/${invitationId}/reject`
+      );
+      return response.data.data;
+    } catch (err) {
+      if (this.isMissingEndpoint(err)) {
+        return this.respond(invitationId, { action: "REJECT" });
+      }
+      this.handleError(err);
+    }
+  }
+
+  async cancel(invitationId: number): Promise<ProjectInvitationDTO | { id: number }> {
+    try {
+      const response = await http.patch<SuccessResponse<ProjectInvitationDTO>>(
+        `/invitations/${invitationId}/cancel`
+      );
+      return response.data.data;
+    } catch (err) {
+      if (this.isMissingEndpoint(err)) {
+        try {
+          const fallback = await http.delete<SuccessResponse<{ id: number }>>(
+            `/invitations/${invitationId}`
+          );
+          return fallback.data.data;
+        } catch (fallbackErr) {
+          this.handleError(fallbackErr);
+        }
+      }
       this.handleError(err);
     }
   }

@@ -13,6 +13,12 @@ import {
 import { ProjectDTO } from "@/dto/projects";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/context/auth-context";
+import TaskToolbar from "@/app/user/tasks/components/TaskToolbar";
+import KanbanBoard from "@/app/user/tasks/components/KanbanBoard";
+import TaskList from "@/app/user/tasks/components/TaskList";
+import TaskCreateModal from "@/app/user/tasks/components/TaskCreateModal";
+import TaskEditModal from "@/app/user/tasks/components/TaskEditModal";
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   BACKLOG: "Backlog",
@@ -30,12 +36,13 @@ const STATUS_COLOR: Record<TaskStatus, string> = {
 
 const PRIORITY_CLASS: Record<TaskPriority, string> = {
   HIGH: "priority-high",
-  MED: "priority-med",
+  MEDIUM: "priority-med",
   LOW: "priority-low",
 };
 
 export default function TasksPage() {
   const { toasts, showToast, removeToast } = useToast();
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
@@ -48,14 +55,57 @@ export default function TasksPage() {
   const [view, setView] = useState<"kanban" | "list">("kanban");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [draftTask, setDraftTask] = useState<CreateTaskPayload>({
     title: "",
     description: "",
-    priority: "MED",
+    priority: "MEDIUM",
     dueDate: "",
+    status:"TODO",
     projectId: undefined,
-    assigneeId: undefined,
+    assignedToId: undefined,
   });
+  const [editTask, setEditTask] = useState<TaskDTO | null>(null);
+  const [editForm, setEditForm] = useState<{
+    status?: TaskStatus;
+    progress?: number;
+    assignedToId?: number;
+  }>({});
+
+  const currentUserId = (() => {
+    if (typeof user?.id === "string") {
+      const parsed = Number(user.id);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return typeof user?.id === "number" ? user.id : undefined;
+  })();
+
+  const parseId = (value: unknown) => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  };
+
+  const getCreatorId = (task: TaskDTO) => {
+    return (
+      parseId(task.creatorId) ??
+      parseId(task.createdById) ??
+      parseId(task.creator?.id) ??
+      parseId(task.createdBy?.id)
+    );
+  };
+
+  const getAssigneeId = (task: TaskDTO) => {
+    return (
+      parseId(task.assignedToId) ??
+      parseId(task.assignee?.id) ??
+      parseId(task.assignee?.userId)
+    );
+  };
 
   const loadProjects = async () => {
     setIsProjectsLoading(true);
@@ -68,6 +118,59 @@ export default function TasksPage() {
       showToast(message, "error");
     } finally {
       setIsProjectsLoading(false);
+    }
+  };
+
+  const openStatusTaskModal = (status: TaskStatus) => {
+    setDraftTask((prev) => ({...prev, status:status}) );
+    return setIsModalOpen(true);
+  }
+
+  const updateDraftTask = (partial: Partial<CreateTaskPayload>) => {
+    setDraftTask((prev) => ({ ...prev, ...partial }));
+  };
+
+  const updateEditForm = (partial: { status?: TaskStatus; progress?: number; assignedToId?: number }) => {
+    setEditForm((prev) => ({ ...prev, ...partial }));
+  };
+
+  const openEditModal = async (task: TaskDTO) => {
+    setEditTask(task);
+    setEditForm({
+      status: task.status,
+      progress: typeof task.progress === "number" ? task.progress : undefined,
+      assignedToId: getAssigneeId(task),
+    });
+    setIsEditModalOpen(true);
+
+    if (task.projectId) {
+      setIsAssigneesLoading(true);
+      try {
+        const assignees = await tasksService.listProjectAssignees(task.projectId);
+        setProjectAssignees(assignees || []);
+      } catch {
+        try {
+          const members = await projectsService.listMembers(task.projectId, "ACCEPTED");
+          const mapped = (members || []).map((member) => ({
+            id: member.userId,
+            name:
+              member.fullName ||
+              member.full_name ||
+              member.name ||
+              member.email ||
+              `User ${member.userId}`,
+            email: member.email,
+            role: member.role,
+          }));
+          setProjectAssignees(mapped);
+        } catch {
+          setProjectAssignees([]);
+        }
+      } finally {
+        setIsAssigneesLoading(false);
+      }
+    } else {
+      setProjectAssignees([]);
     }
   };
 
@@ -121,7 +224,7 @@ export default function TasksPage() {
       setDraftTask((prev) => ({
         ...prev,
         projectId: undefined,
-        assigneeId: undefined,
+        assignedToId: undefined,
       }));
       setProjectAssignees([]);
     }
@@ -208,10 +311,10 @@ export default function TasksPage() {
       setDraftTask({
         title: "",
         description: "",
-        priority: "MED",
+        priority: "MEDIUM",
         dueDate: "",
         projectId: undefined,
-        assigneeId: undefined,
+        assignedToId: undefined,
       });
       setProjectAssignees([]);
     } catch (err) {
@@ -224,6 +327,16 @@ export default function TasksPage() {
   };
 
   const handleDrop = async (taskId: number, status: TaskStatus) => {
+    const target = tasks.find((task) => task.id === taskId);
+    const assigneeId = target ? getAssigneeId(target) : undefined;
+    const canUpdateStatus =
+      currentUserId !== undefined && assigneeId !== undefined && currentUserId === assigneeId;
+
+    if (!canUpdateStatus) {
+      showToast("Only the assignee can change task status.", "error");
+      return;
+    }
+
     setTasks((prev) =>
       prev.map((task) => (task.id === taskId ? { ...task, status } : task))
     );
@@ -234,6 +347,56 @@ export default function TasksPage() {
       const message =
         (err as { message?: string })?.message || "Failed to update task.";
       showToast(message, "error");
+    }
+  };
+
+  const handleUpdateTask = async () => {
+    if (!editTask) return;
+
+    const creatorId = getCreatorId(editTask);
+    const assigneeId = getAssigneeId(editTask);
+    const canReassign =
+      currentUserId !== undefined && creatorId !== undefined && currentUserId === creatorId;
+    const canUpdateStatus =
+      currentUserId !== undefined && assigneeId !== undefined && currentUserId === assigneeId;
+
+    const payload: Record<string, unknown> = {};
+    if (canUpdateStatus && editForm.status) {
+      payload.status = editForm.status;
+    }
+
+    if (canUpdateStatus && typeof editForm.progress === "number") {
+      const clamped = Math.max(0, Math.min(100, editForm.progress));
+      payload.progress = clamped;
+    }
+
+    if (canReassign && typeof editForm.assignedToId === "number") {
+      payload.assignedToId = editForm.assignedToId;
+    }
+
+    if (!Object.keys(payload).length) {
+      showToast("No allowed changes for your role on this task.", "error");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      console.log("second one");
+      const updated = await tasksService.update(editTask.id, payload);
+      if (updated) {
+        setTasks((prev) =>
+          prev.map((task) => (task.id === editTask.id ? updated : task))
+        );
+      }
+      showToast("Task updated", "success");
+      setIsEditModalOpen(false);
+      setEditTask(null);
+    } catch (err) {
+      const message =
+        (err as { message?: string })?.message || "Failed to update task.";
+      showToast(message, "error");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -286,7 +449,7 @@ export default function TasksPage() {
         >
           <option value="ALL">All Priorities</option>
           <option value="HIGH">High</option>
-          <option value="MED">Medium</option>
+          <option value="MEDIUM">Medium</option>
           <option value="LOW">Low</option>
         </select>
 
@@ -336,7 +499,7 @@ export default function TasksPage() {
                   <div
                     key={task.id}
                     className="kanban-task"
-                    draggable
+                    draggable={currentUserId !== undefined && currentUserId === getAssigneeId(task)}
                     onDragStart={(event) => {
                       event.dataTransfer.setData("taskId", String(task.id));
                     }}
@@ -375,12 +538,20 @@ export default function TasksPage() {
                     ) : null}
                     <div className="kanban-task-footer">
                       <span className="kanban-task-due">Due: {task.dueDate || "No due date"}</span>
-                      <div className="dp-avatar avatar-a">{task.assigneeInitials || "NA"}</div>
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <div className="dp-avatar avatar-a">{task.assigneeInitials || "NA"}</div>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => void openEditModal(task)}
+                        >
+                          Update
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <button className="kanban-add" onClick={() => setIsModalOpen(true)}>
+              <button className="kanban-add" onClick={() => openStatusTaskModal(status)}>
                 + Add task
               </button>
             </div>
@@ -405,7 +576,7 @@ export default function TasksPage() {
                 </div>
                 <button
                   className="btn btn-secondary btn-sm"
-                  onClick={() => void handleDrop(task.id, task.status)}
+                  onClick={() => void openEditModal(task)}
                 >
                   Update
                 </button>
@@ -463,7 +634,7 @@ export default function TasksPage() {
                     }
                   >
                     <option value="HIGH">High</option>
-                    <option value="MED">Medium</option>
+                    <option value="MEDIUM">Medium</option>
                     <option value="LOW">Low</option>
                   </select>
                 </div>
@@ -492,7 +663,7 @@ export default function TasksPage() {
                         projectId: event.target.value
                           ? Number(event.target.value)
                           : undefined,
-                        assigneeId: undefined,
+                        assignedToId: undefined,
                       }))
                     }
                   >
@@ -523,11 +694,11 @@ export default function TasksPage() {
                     <label className="form-label">Assign To</label>
                     <select
                       className="form-input select-input"
-                      value={draftTask.assigneeId || ""}
+                      value={draftTask.assignedToId || ""}
                       onChange={(event) =>
                         setDraftTask((prev) => ({
                           ...prev,
-                          assigneeId: event.target.value
+                          assignedToId: event.target.value
                             ? Number(event.target.value)
                             : undefined,
                         }))
@@ -570,6 +741,148 @@ export default function TasksPage() {
                 disabled={isSaving}
               >
                 {isSaving ? "Creating..." : "Create Task"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isEditModalOpen && editTask ? (
+        <div className="modal-backdrop open" id="taskEditModal">
+          <div className="modal">
+            <div className="modal-header">
+              <h3 className="modal-title">Update Task</h3>
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditTask(null);
+                }}
+              >
+                x
+              </button>
+            </div>
+            <div className="modal-body">
+              <div
+                style={{
+                  marginBottom: "1rem",
+                  color: "var(--slate-400)",
+                  fontSize: "0.85rem",
+                }}
+              >
+                {editTask.title} • {editTask.projectName || "No project"}
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select
+                    className="form-input select-input"
+                    value={editForm.status || editTask.status}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        status: event.target.value as TaskStatus,
+                      }))
+                    }
+                    disabled={
+                      !currentUserId ||
+                      currentUserId !== getAssigneeId(editTask)
+                    }
+                  >
+                    <option value="BACKLOG">Backlog</option>
+                    <option value="TODO">To Do</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="DONE">Done</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Progress (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className="form-input"
+                    value={
+                      typeof editForm.progress === "number"
+                        ? editForm.progress
+                        : editTask.progress ?? ""
+                    }
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        progress:
+                          event.target.value === "" ? undefined : Number(event.target.value),
+                      }))
+                    }
+                    disabled={
+                      !currentUserId ||
+                      currentUserId !== getAssigneeId(editTask)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Reassign To</label>
+                  <select
+                    className="form-input select-input"
+                    value={editForm.assignedToId ?? getAssigneeId(editTask) ?? ""}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        assignedToId: event.target.value
+                          ? Number(event.target.value)
+                          : undefined,
+                      }))
+                    }
+                    disabled={
+                      !currentUserId ||
+                      currentUserId !== getCreatorId(editTask)
+                    }
+                  >
+                    <option value="">
+                      {isAssigneesLoading ? "Loading collaborators..." : "Unassigned"}
+                    </option>
+                    {projectAssignees.map((assignee) => (
+                      <option key={assignee.id} value={assignee.id}>
+                        {assignee.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {!currentUserId ? (
+                <div
+                  style={{
+                    marginTop: "0.5rem",
+                    color: "var(--slate-400)",
+                    fontSize: "0.8rem",
+                  }}
+                >
+                  Sign in to update tasks.
+                </div>
+              ) : null}
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditTask(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleUpdateTask}
+                disabled={isUpdating}
+              >
+                {isUpdating ? "Updating..." : "Save Changes"}
               </button>
             </div>
           </div>

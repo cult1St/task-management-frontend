@@ -49,10 +49,11 @@ class TasksService {
     }
   }
 
-  async update(taskId: number, payload: UpdateTaskPayload) {
+  async update(taskId: number, payload: UpdateTaskPayload, type: string = 'all') {
     try {
+      const url = type == 'status' ? `/tasks/${taskId}/update-status` : `/tasks/${taskId}`;
       const response = await http.patch<SuccessResponse<TaskDTO>>(
-        `/tasks/${taskId}`,
+        url,
         payload
       );
       return response.data.data;

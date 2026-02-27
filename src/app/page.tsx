@@ -140,7 +140,7 @@ export default function Home() {
                   <div className="dp-task">
                     <div className="dp-task-title">Mobile notifications</div>
                     <div className="dp-task-meta">
-                      <span className="dp-tag tag-amber">Med</span>
+                      <span className="dp-tag tag-amber">Medium</span>
                       <span className="dp-avatar avatar-c">ML</span>
                     </div>
                   </div>

@@ -23,7 +23,7 @@ interface Project {
   fillClass: string;
 }
 
-type Priority = "HIGH" | "MED" | "LOW";
+type Priority = "HIGH" | "MEDIUM" | "LOW";
 
 interface Deadline {
   id: number;

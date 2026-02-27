@@ -1,7 +1,7 @@
 ﻿export function TaskItem({ task, onToggle }: { task: Task; onToggle: (id: number) => void }) {
   const priorityClass: Record<Priority, string> = {
     HIGH: "priority-high",
-    MED: "priority-med",
+    MEDIUM: "priority-med",
     LOW: "priority-low",
   };
 

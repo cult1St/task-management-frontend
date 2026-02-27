@@ -12,7 +12,7 @@ const STATUS_COLOR: Record<InvitationStatus, string> = {
   PENDING: "var(--amber-400)",
   ACCEPTED: "#4ade80",
   REJECTED: "var(--rose-400)",
-  CANCELED: "var(--slate-400)",
+  REMOVED: "var(--slate-400)",
 };
 
 export default function InvitationsPage() {
@@ -47,16 +47,22 @@ export default function InvitationsPage() {
 
   const handleRespond = async (
     invitationId: number,
-    action: "accept" | "reject"
+    action: "ACCEPT" | "REJECT"
   ) => {
     setIsSubmitting(invitationId);
     try {
-      const updated = await invitationsService.respond(invitationId, { action });
+      const updated =
+        action === "ACCEPT"
+          ? await invitationsService.accept(invitationId)
+          : await invitationsService.reject(invitationId);
+      if (!updated) {
+        throw new Error("Invitation update returned no data.");
+      }
       setReceived((prev) =>
         prev.map((item) => (item.id === invitationId ? updated : item))
       );
       showToast(
-        action === "accept" ? "Invitation accepted." : "Invitation rejected.",
+        action === "ACCEPT" ? "Invitation accepted." : "Invitation rejected.",
         "success"
       );
     } catch (err) {
@@ -71,8 +77,13 @@ export default function InvitationsPage() {
   const handleCancel = async (invitationId: number) => {
     setIsSubmitting(invitationId);
     try {
-      await invitationsService.cancel(invitationId);
-      setSent((prev) => prev.filter((item) => item.id !== invitationId));
+      const result = await invitationsService.cancel(invitationId);
+      setSent((prev) => {
+        if (result && typeof result === "object" && "status" in result) {
+          return prev.map((item) => (item.id === invitationId ? result : item));
+        }
+        return prev.filter((item) => item.id !== invitationId);
+      });
       showToast("Invitation canceled.", "success");
     } catch (err) {
       const message =
@@ -85,6 +96,8 @@ export default function InvitationsPage() {
 
   const current = activeTab === "received" ? received : sent;
 
+
+  console.log(isSubmitting);
   return (
     <div>
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
@@ -150,14 +163,14 @@ export default function InvitationsPage() {
                       <button
                         className="btn btn-secondary btn-sm"
                         disabled={isSubmitting === invite.id}
-                        onClick={() => void handleRespond(invite.id, "reject")}
+                        onClick={() => void handleRespond(invite.id, "REJECT")}
                       >
                         Reject
                       </button>
                       <button
                         className="btn btn-primary btn-sm"
                         disabled={isSubmitting === invite.id}
-                        onClick={() => void handleRespond(invite.id, "accept")}
+                        onClick={() => void handleRespond(invite.id, "ACCEPT")}
                       >
                         Accept
                       </button>

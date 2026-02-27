@@ -1,4 +1,4 @@
-export type TaskPriority = "HIGH" | "MED" | "LOW";
+export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
 export type TaskStatus = "BACKLOG" | "TODO" | "IN_PROGRESS" | "DONE";
 
 export interface TaskDTO {
@@ -10,6 +10,12 @@ export interface TaskDTO {
   dueDate?: string;
   assigneeInitials?: string;
   assigneeName?: string;
+  assignedToId?: number;
+  creatorId?: number;
+  createdById?: number;
+  createdBy?: { id?: number | string };
+  creator?: { id?: number | string };
+  assignee?: { id?: number | string; userId?: number | string };
   projectId?: number;
   projectName?: string;
   progress?: number;
@@ -28,7 +34,8 @@ export interface CreateTaskPayload {
   description?: string;
   priority: TaskPriority;
   dueDate?: string;
-  assigneeId?: number;
+  status?: TaskStatus;
+  assignedToId?: number;
   projectId?: number;
 }
 
@@ -38,7 +45,7 @@ export interface UpdateTaskPayload {
   priority?: TaskPriority;
   status?: TaskStatus;
   dueDate?: string;
-  assigneeId?: number;
+  assignedToId?: number;
   projectId?: number;
   progress?: number;
 }

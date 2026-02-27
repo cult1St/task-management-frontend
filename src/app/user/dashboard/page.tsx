@@ -17,8 +17,8 @@ import {
 const INITIAL_TASKS: Task[] = [
   { id: 1, name: "Setup Spring Boot project structure", done: true,  priority: "HIGH", due: "Feb 10", overdue: true },
   { id: 2, name: "Implement JWT authentication",        done: false, priority: "HIGH", due: "Feb 14" },
-  { id: 3, name: "Design RESTful API endpoints",        done: false, priority: "MED",  due: "Feb 16" },
-  { id: 4, name: "Write unit tests for task service",   done: false, priority: "MED",  due: "Feb 18" },
+  { id: 3, name: "Design RESTful API endpoints",        done: false, priority: "MEDIUM",  due: "Feb 16" },
+  { id: 4, name: "Write unit tests for task service",   done: false, priority: "MEDIUM",  due: "Feb 18" },
   { id: 5, name: "Deploy to staging environment",       done: false, priority: "LOW",  due: "Feb 22" },
 ];
 
