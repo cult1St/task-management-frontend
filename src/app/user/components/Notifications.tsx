@@ -94,9 +94,31 @@ export default function Notifications() {
 
   return (
     <div ref={rootRef} style={{ position: "relative" }}>
-      <button className="notif-btn" onClick={() => setOpen((prev) => !prev)}>
-        N
+      <button
+        className="notif-btn"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label="Notifications"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
+          <path d="M13.73 21a2 2 0 01-3.46 0" />
+        </svg>
         {hasUnread ? <span className="notif-dot" /> : null}
+        {hasUnread ? (
+          <span className="notif-count" aria-live="polite">
+            {unreadCount}
+          </span>
+        ) : null}
       </button>
 
       {open ? (
@@ -146,7 +168,7 @@ export default function Notifications() {
             style={{ borderBottom: "none", borderTop: "1px solid rgba(255,255,255,0.06)" }}
           >
             <Link href="/user/notifications" onClick={() => setOpen(false)} className="notif-mark">
-              View all notifications
+              View more
             </Link>
           </div>
         </div>

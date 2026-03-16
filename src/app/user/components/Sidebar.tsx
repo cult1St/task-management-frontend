@@ -36,11 +36,8 @@ export default function Sidebar({
       ],
     },
     {
-      section: "Team",
-      items: [
-        { href: "/user/team", icon: "👥", label: "Team Members" },
-        { href: "/user/invitations", icon: "✉", label: "Invitations" },
-      ],
+      section: "Collaboration",
+      items: [{ href: "/user/invitations", icon: "✉", label: "Invitations" }],
     },
     {
       section: "Account",

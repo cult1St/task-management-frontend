@@ -93,6 +93,11 @@ export default function CalendarPage() {
   const goToNextMonth = () =>
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
 
+  const handleDayClick = (_date: Date, iso: string) => {
+    setDraftEvent({ ...EMPTY_DRAFT, date: iso });
+    setIsModalOpen(true);
+  };
+
   // ── Event creation ────────────────────────────────────────────────────────────
   const handleCreateEvent = async () => {
     if (!draftEvent.title.trim()) {
@@ -139,6 +144,7 @@ export default function CalendarPage() {
             calendarDays={calendarDays}
             eventsByDate={eventsByDate}
             todayISO={todayISO}
+            onDayClick={handleDayClick}
           />
         </div>
 
