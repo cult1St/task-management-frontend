@@ -249,3 +249,40 @@ User search for inviting
 
 GET /users/search?q=sam (existing users only)
 Invitations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You are working on the task-management frontend in this repo. Bring it to production readiness by implementing the remaining gaps below. Do not introduce demo data.
+
+Scope:
+1) Dashboard: ensure all data (stats, tasks, activity, deadlines, team members) is fully backend-driven. Add clear loading/empty/error states. Do not silently fail.
+2) Projects-based team management: add UI under project details to invite members, view members, change roles, and remove members. Ensure the Invitations page links to project-specific membership context.
+3) Calendar: add event edit/delete flows. Clicking an event should open a details/edit modal. Persist all changes to backend.
+4) Tasks: allow quick status updates from the dashboard and ensure backend is updated and UI refreshed.
+5) Access control: hide/disable actions the user cannot perform based on role; include server error handling for permission failures.
+6) Performance: add pagination or virtualization for large lists (tasks, projects, notifications).
+7) Validation: add client-side validation and friendly error messages for all forms (tasks, projects, calendar, invitations).
+8) Observability: add error logging hooks and event tracking for key actions.
+9) Tests: add unit/integration tests for critical flows, and outline minimal e2e coverage.
+
+Deliver:
+- Code changes with concise explanations.
+- List of new/updated endpoints expected from backend (if any).
+- Tests added and how to run them.
