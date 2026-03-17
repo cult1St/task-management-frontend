@@ -55,7 +55,7 @@ export default function TaskEditModal({
         </div>
         <div className="modal-body">
           <div style={{ marginBottom: "1rem", color: "var(--slate-400)", fontSize: "0.85rem" }}>
-            {editTask.title} • {editTask.projectName || "No project"}
+            {editTask.title} - {editTask.projectName || "No project"}
           </div>
 
           <div className="form-row">
@@ -114,11 +114,12 @@ export default function TaskEditModal({
                 <option value="">
                   {isAssigneesLoading ? "Loading collaborators..." : "Unassigned"}
                 </option>
-                {projectAssignees.map((assignee) => (
-                  <option key={assignee.id} value={assignee.id}>
+                {projectAssignees.map((assignee) => {
+                  console.log(assignee);
+                  return (<option  value={assignee.id} >
                     {assignee.name}
-                  </option>
-                ))}
+                  </option>)
+                })}
               </select>
             </div>
           </div>

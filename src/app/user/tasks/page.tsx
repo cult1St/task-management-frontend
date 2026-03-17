@@ -1,7 +1,6 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatShortDate } from "@/utils/dateUtil";
 import { logEvent } from "@/utils/telemetry";
 import tasksService from "@/services/tasks.service";
 import projectsService from "@/services/projects.service";
@@ -42,6 +41,16 @@ const PRIORITY_CLASS: Record<TaskPriority, string> = {
   LOW: "priority-low",
 };
 
+const DEFAULT_DRAFT_TASK: CreateTaskPayload = {
+  title: "",
+  description: "",
+  priority: "MEDIUM",
+  dueDate: "",
+  status: "TODO",
+  projectId: undefined,
+  assignedToId: undefined,
+};
+
 export default function TasksPage() {
   const { toasts, showToast, removeToast } = useToast();
   const { user } = useAuth();
@@ -59,15 +68,7 @@ export default function TasksPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [draftTask, setDraftTask] = useState<CreateTaskPayload>({
-    title: "",
-    description: "",
-    priority: "MEDIUM",
-    dueDate: "",
-    status:"TODO",
-    projectId: undefined,
-    assignedToId: undefined,
-  });
+  const [draftTask, setDraftTask] = useState<CreateTaskPayload>(DEFAULT_DRAFT_TASK);
   const [editTask, setEditTask] = useState<TaskDTO | null>(null);
   const [editForm, setEditForm] = useState<{
     status?: TaskStatus;
@@ -115,18 +116,24 @@ export default function TasksPage() {
       const projectList = await projectsService.list();
       setProjects(projectList || []);
     } catch (err) {
-      const message =
-        (err as { message?: string })?.message || "Failed to load projects.";
+      const message = (err as { message?: string })?.message || "Failed to load projects.";
       showToast(message, "error");
     } finally {
       setIsProjectsLoading(false);
     }
   };
 
-  const openStatusTaskModal = (status: TaskStatus) => {
-    setDraftTask((prev) => ({...prev, status:status}) );
-    return setIsModalOpen(true);
-  }
+  const openCreateModal = (status?: TaskStatus) => {
+    setDraftTask((prev) => ({
+      ...prev,
+      status: status ?? prev.status ?? "TODO",
+    }));
+    setIsModalOpen(true);
+  };
+
+  const closeCreateModal = () => {
+    setIsModalOpen(false);
+  };
 
   const updateDraftTask = (partial: Partial<CreateTaskPayload>) => {
     setDraftTask((prev) => ({ ...prev, ...partial }));
@@ -176,6 +183,11 @@ export default function TasksPage() {
     }
   };
 
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditTask(null);
+  };
+
   useEffect(() => {
     void loadProjects();
     // load once for options and filters
@@ -193,8 +205,7 @@ export default function TasksPage() {
         });
         setTasks(taskList || []);
       } catch (err) {
-        const message =
-          (err as { message?: string })?.message || "Failed to load tasks.";
+        const message = (err as { message?: string })?.message || "Failed to load tasks.";
         showToast(message, "error");
       }
     };
@@ -314,19 +325,11 @@ export default function TasksPage() {
           priority: created.priority,
         });
       }
-      setIsModalOpen(false);
-      setDraftTask({
-        title: "",
-        description: "",
-        priority: "MEDIUM",
-        dueDate: "",
-        projectId: undefined,
-        assignedToId: undefined,
-      });
+      closeCreateModal();
+      setDraftTask(DEFAULT_DRAFT_TASK);
       setProjectAssignees([]);
     } catch (err) {
-      const message =
-        (err as { message?: string })?.message || "Could not create task.";
+      const message = (err as { message?: string })?.message || "Could not create task.";
       showToast(message, "error");
     } finally {
       setIsSaving(false);
@@ -344,16 +347,13 @@ export default function TasksPage() {
       return;
     }
 
-    setTasks((prev) =>
-      prev.map((task) => (task.id === taskId ? { ...task, status } : task))
-    );
+    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, status } : task)));
     try {
-      await tasksService.update(taskId, { status });
+      await tasksService.update(taskId, { status }, "status");
       showToast("Task updated", "success");
       logEvent("task.status_updated", { taskId, status });
     } catch (err) {
-      const message =
-        (err as { message?: string })?.message || "Failed to update task.";
+      const message = (err as { message?: string })?.message || "Failed to update task.";
       showToast(message, "error");
       logEvent("task.status_update_failed", { taskId, status, error: message });
     }
@@ -392,17 +392,13 @@ export default function TasksPage() {
     try {
       const updated = await tasksService.update(editTask.id, payload);
       if (updated) {
-        setTasks((prev) =>
-          prev.map((task) => (task.id === editTask.id ? updated : task))
-        );
+        setTasks((prev) => prev.map((task) => (task.id === editTask.id ? updated : task)));
         logEvent("task.updated", { taskId: updated.id, changes: payload });
       }
       showToast("Task updated", "success");
-      setIsEditModalOpen(false);
-      setEditTask(null);
+      closeEditModal();
     } catch (err) {
-      const message =
-        (err as { message?: string })?.message || "Failed to update task.";
+      const message = (err as { message?: string })?.message || "Failed to update task.";
       showToast(message, "error");
       logEvent("task.update_failed", { taskId: editTask.id, error: message });
     } finally {
@@ -419,485 +415,67 @@ export default function TasksPage() {
         <p className="page-subtitle">Drag and drop tasks to update their status</p>
       </div>
 
-      <div className="tasks-toolbar">
-        <div className="filter-tabs">
-          {[
-            { value: "all", label: "All" },
-            { value: "mine", label: "Mine" },
-            { value: "team", label: "Team" },
-            { value: "overdue", label: "Overdue" },
-          ].map((filter) => (
-            <button
-              key={filter.value}
-              className={`filter-tab ${activeFilter === filter.value ? "active" : ""}`}
-              onClick={() => setActiveFilter(filter.value as typeof activeFilter)}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-
-        <select
-          className="select-input"
-          value={projectFilter}
-          onChange={(e) =>
-            setProjectFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))
-          }
-        >
-          <option value="ALL">All Projects</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="select-input"
-          value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value as TaskPriority | "ALL")}
-        >
-          <option value="ALL">All Priorities</option>
-          <option value="HIGH">High</option>
-          <option value="MEDIUM">Medium</option>
-          <option value="LOW">Low</option>
-        </select>
-
-        <div className="view-toggle" style={{ marginLeft: "auto" }}>
-          <button
-            className={`view-btn ${view === "kanban" ? "active" : ""}`}
-            data-tip="Kanban"
-            onClick={() => setView("kanban")}
-          >
-            KB
-          </button>
-          <button
-            className={`view-btn ${view === "list" ? "active" : ""}`}
-            data-tip="List"
-            onClick={() => setView("list")}
-          >
-            LS
-          </button>
-        </div>
-
-        <button className="btn btn-primary btn-sm" onClick={() => setIsModalOpen(true)}>
-          + Add Task
-        </button>
-      </div>
+      <TaskToolbar
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        projectFilter={projectFilter}
+        onProjectFilterChange={setProjectFilter}
+        projects={projects}
+        priorityFilter={priorityFilter}
+        onPriorityFilterChange={setPriorityFilter}
+        view={view}
+        onViewChange={setView}
+        onAddTask={() => openCreateModal()}
+      />
 
       {view === "kanban" ? (
-        <div className="kanban-board">
-          {(Object.keys(STATUS_LABELS) as TaskStatus[]).map((status) => (
-            <div
-              className="kanban-col"
-              key={status}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                const taskId = Number(event.dataTransfer.getData("taskId"));
-                if (taskId) {
-                  void handleDrop(taskId, status);
-                }
-              }}
-            >
-              <div className="kanban-col-header">
-                <div className="col-indicator" style={{ background: STATUS_COLOR[status] }} />
-                <span className="col-title">{STATUS_LABELS[status]}</span>
-                <span className="col-count">{groupedTasks[status].length}</span>
-              </div>
-              <div className="kanban-tasks">
-                {groupedTasks[status].map((task) => (
-                  <div
-                    key={task.id}
-                    className="kanban-task"
-                    draggable={currentUserId !== undefined && currentUserId === getAssigneeId(task)}
-                    onDragStart={(event) => {
-                      event.dataTransfer.setData("taskId", String(task.id));
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: "0.5rem",
-                      }}
-                    >
-                      <span className="dp-tag tag-violet">{task.projectName || "Task"}</span>
-                      <span className={`task-priority ${PRIORITY_CLASS[task.priority]}`}>
-                        {task.priority}
-                      </span>
-                    </div>
-                    <div className="kanban-task-title">{task.title}</div>
-                    {task.progress ? (
-                      <div style={{ margin: "0.5rem 0" }}>
-                        <div
-                          style={{
-                            fontSize: "0.7rem",
-                            color: "var(--slate-400)",
-                            marginBottom: "0.3rem",
-                          }}
-                        >
-                          Progress
-                        </div>
-                        <div className="progress-bar">
-                          <div
-                            className="progress-fill fill-teal"
-                            style={{ width: `${task.progress}%` }}
-                          />
-                        </div>
-                      </div>
-                    ) : null}
-                    <div className="kanban-task-footer">
-                      <span className="kanban-task-due">Due: {task.dueDate ? formatShortDate(task.dueDate) : "No due date"}</span>
-                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                        <div className="dp-avatar avatar-a">{task.assigneeInitials || "NA"}</div>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => void openEditModal(task)}
-                        >
-                          Update
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="kanban-add" onClick={() => openStatusTaskModal(status)}>
-                + Add task
-              </button>
-            </div>
-          ))}
-        </div>
+        <KanbanBoard
+          groupedTasks={groupedTasks}
+          statusLabels={STATUS_LABELS}
+          statusColors={STATUS_COLOR}
+          priorityClass={PRIORITY_CLASS}
+          onDropTask={(taskId, status) => void handleDrop(taskId, status)}
+          onOpenEdit={(task) => void openEditModal(task)}
+          canDrag={(task) =>
+            currentUserId !== undefined && currentUserId === getAssigneeId(task)
+          }
+          onAddTask={(status) => openCreateModal(status)}
+        />
       ) : (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Task List</span>
-          </div>
-          <div style={{ padding: "1rem" }}>
-            {tasks.map((task) => (
-              <div key={task.id} className="task-item">
-                <div className="task-info">
-                  <div className="task-name">{task.title}</div>
-                  <div className="task-meta-row">
-                    <span className={`task-priority ${PRIORITY_CLASS[task.priority]}`}>
-                      {task.priority}
-                    </span>
-                    <span className="task-due">Due: {task.dueDate ? formatShortDate(task.dueDate) : "No due date"}</span>
-                  </div>
-                </div>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => void openEditModal(task)}
-                >
-                  Update
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+        <TaskList
+          tasks={tasks}
+          priorityClass={PRIORITY_CLASS}
+          onOpenEdit={(task) => void openEditModal(task)}
+        />
       )}
 
-      {isModalOpen ? (
-        <div className="modal-backdrop open" id="taskModal">
-          <div className="modal">
-            <div className="modal-header">
-              <h3 className="modal-title">Create New Task</h3>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
-                x
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label className="form-label">Task Title *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Design new onboarding flow"
-                  value={draftTask.title}
-                  onChange={(event) =>
-                    setDraftTask((prev) => ({ ...prev, title: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Description</label>
-                <textarea
-                  className="form-input"
-                  rows={3}
-                  placeholder="Add task details..."
-                  value={draftTask.description}
-                  onChange={(event) =>
-                    setDraftTask((prev) => ({ ...prev, description: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Priority</label>
-                  <select
-                    className="form-input select-input"
-                    value={draftTask.priority}
-                    onChange={(event) =>
-                      setDraftTask((prev) => ({
-                        ...prev,
-                        priority: event.target.value as TaskPriority,
-                      }))
-                    }
-                  >
-                    <option value="HIGH">High</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="LOW">Low</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Due Date</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={draftTask.dueDate || ""}
-                    onChange={(event) =>
-                      setDraftTask((prev) => ({ ...prev, dueDate: event.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Project *</label>
-                  <select
-                    className="form-input select-input"
-                    value={draftTask.projectId || ""}
-                    disabled={isProjectsLoading}
-                    onChange={(event) =>
-                      setDraftTask((prev) => ({
-                        ...prev,
-                        projectId: event.target.value
-                          ? Number(event.target.value)
-                          : undefined,
-                        assignedToId: undefined,
-                      }))
-                    }
-                  >
-                    <option value="">
-                      {isProjectsLoading ? "Loading projects..." : "Select project"}
-                    </option>
-                    {projects.map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                  {!isProjectsLoading && !projects.length ? (
-                    <div
-                      style={{
-                        fontSize: "0.75rem",
-                        color: "var(--slate-400)",
-                        marginTop: "0.4rem",
-                      }}
-                    >
-                      No projects found. Create a project first, then add tasks under it.
-                    </div>
-                  ) : null}
-                </div>
+      <TaskCreateModal
+        isOpen={isModalOpen}
+        isSaving={isSaving}
+        draftTask={draftTask}
+        projects={projects}
+        projectAssignees={projectAssignees}
+        isProjectsLoading={isProjectsLoading}
+        isAssigneesLoading={isAssigneesLoading}
+        onClose={closeCreateModal}
+        onCreate={() => void handleCreateTask()}
+        onDraftChange={updateDraftTask}
+      />
 
-                {draftTask.projectId ? (
-                  <div className="form-group">
-                    <label className="form-label">Assign To</label>
-                    <select
-                      className="form-input select-input"
-                      value={draftTask.assignedToId || ""}
-                      onChange={(event) =>
-                        setDraftTask((prev) => ({
-                          ...prev,
-                          assignedToId: event.target.value
-                            ? Number(event.target.value)
-                            : undefined,
-                        }))
-                      }
-                      disabled={isAssigneesLoading}
-                    >
-                      <option value="">
-                        {isAssigneesLoading
-                          ? "Loading collaborators..."
-                          : "Unassigned"}
-                      </option>
-                      {projectAssignees.map((assignee) => (
-                        <option key={assignee.id} value={assignee.id}>
-                          {assignee.name}
-                        </option>
-                      ))}
-                    </select>
-                    {!isAssigneesLoading && !projectAssignees.length ? (
-                      <div
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "var(--slate-400)",
-                          marginTop: "0.4rem",
-                        }}
-                      >
-                        No collaborators in this project yet. Invite from Projects page.
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleCreateTask}
-                disabled={isSaving}
-              >
-                {isSaving ? "Creating..." : "Create Task"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {isEditModalOpen && editTask ? (
-        <div className="modal-backdrop open" id="taskEditModal">
-          <div className="modal">
-            <div className="modal-header">
-              <h3 className="modal-title">Update Task</h3>
-              <button
-                className="modal-close"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditTask(null);
-                }}
-              >
-                x
-              </button>
-            </div>
-            <div className="modal-body">
-              <div
-                style={{
-                  marginBottom: "1rem",
-                  color: "var(--slate-400)",
-                  fontSize: "0.85rem",
-                }}
-              >
-                {editTask.title} • {editTask.projectName || "No project"}
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Status</label>
-                  <select
-                    className="form-input select-input"
-                    value={editForm.status || editTask.status}
-                    onChange={(event) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        status: event.target.value as TaskStatus,
-                      }))
-                    }
-                    disabled={
-                      !currentUserId ||
-                      currentUserId !== getAssigneeId(editTask)
-                    }
-                  >
-                    <option value="BACKLOG">Backlog</option>
-                    <option value="TODO">To Do</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="DONE">Done</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Progress (%)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    className="form-input"
-                    value={
-                      typeof editForm.progress === "number"
-                        ? editForm.progress
-                        : editTask.progress ?? ""
-                    }
-                    onChange={(event) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        progress:
-                          event.target.value === "" ? undefined : Number(event.target.value),
-                      }))
-                    }
-                    disabled={
-                      !currentUserId ||
-                      currentUserId !== getAssigneeId(editTask)
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Reassign To</label>
-                  <select
-                    className="form-input select-input"
-                    value={editForm.assignedToId ?? getAssigneeId(editTask) ?? ""}
-                    onChange={(event) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        assignedToId: event.target.value
-                          ? Number(event.target.value)
-                          : undefined,
-                      }))
-                    }
-                    disabled={
-                      !currentUserId ||
-                      currentUserId !== getCreatorId(editTask)
-                    }
-                  >
-                    <option value="">
-                      {isAssigneesLoading ? "Loading collaborators..." : "Unassigned"}
-                    </option>
-                    {projectAssignees.map((assignee) => (
-                      <option key={assignee.id} value={assignee.id}>
-                        {assignee.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {!currentUserId ? (
-                <div
-                  style={{
-                    marginTop: "0.5rem",
-                    color: "var(--slate-400)",
-                    fontSize: "0.8rem",
-                  }}
-                >
-                  Sign in to update tasks.
-                </div>
-              ) : null}
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setEditTask(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleUpdateTask}
-                disabled={isUpdating}
-              >
-                {isUpdating ? "Updating..." : "Save Changes"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <TaskEditModal
+        isOpen={isEditModalOpen}
+        isUpdating={isUpdating}
+        editTask={editTask}
+        editForm={editForm}
+        projectAssignees={projectAssignees}
+        isAssigneesLoading={isAssigneesLoading}
+        currentUserId={currentUserId}
+        getAssigneeId={getAssigneeId}
+        getCreatorId={getCreatorId}
+        onClose={closeEditModal}
+        onSave={() => void handleUpdateTask()}
+        onEditChange={updateEditForm}
+      />
     </div>
   );
 }
