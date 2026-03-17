@@ -1,5 +1,6 @@
 import { AxiosError } from "axios";
 import http from "./http";
+import { logError } from "@/utils/telemetry";
 import { ErrorResponse } from "@/dto/auth";
 import { NotificationDTO } from "@/dto/notifications";
 
@@ -10,6 +11,7 @@ interface SuccessResponse<T> {
 
 class NotificationsService {
   private handleError(err: unknown): never {
+    logError(err, { service: "notifications" });
     const axiosError = err as AxiosError<ErrorResponse>;
     const data = axiosError.response?.data;
 
@@ -23,7 +25,7 @@ class NotificationsService {
     };
   }
 
-  async list(params?: { unreadOnly?: boolean; limit?: number }) {
+  async list(params?: { unreadOnly?: boolean; limit?: number; offset?: number }) {
     try {
       const response = await http.get<SuccessResponse<NotificationDTO[]>>(
         "/notifications",

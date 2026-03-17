@@ -16,6 +16,7 @@ interface CalendarGridProps {
   eventsByDate: Record<string, CalendarEventDTO[]>;
   todayISO: string;
   onDayClick: (date: Date, iso: string) => void;
+  onEventClick?: (event: CalendarEventDTO) => void;
 }
 
 export default function CalendarGrid({
@@ -23,6 +24,7 @@ export default function CalendarGrid({
   eventsByDate,
   todayISO,
   onDayClick,
+  onEventClick,
 }: CalendarGridProps) {
   return (
     <div className="calendar-grid">
@@ -55,6 +57,10 @@ export default function CalendarGrid({
               <div
                 key={event.id}
                 className={`cell-event ${event.color ? COLOR_CLASS[event.color] : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEventClick?.(event);
+                }}
               >
                 {event.title}
               </div>

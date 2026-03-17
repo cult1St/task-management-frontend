@@ -108,6 +108,29 @@ class ProjectsService {
       this.handleError(err);
     }
   }
+
+  async updateMember(projectId: number, userId: number, payload: { role?: string; status?: string }) {
+    try {
+      const response = await http.patch<SuccessResponse<ProjectMemberDTO>>(
+        `/projects/${projectId}/members/${userId}`,
+        payload
+      );
+      return response.data.data;
+    } catch (err) {
+      this.handleError(err);
+    }
+  }
+
+  async removeMember(projectId: number, userId: number) {
+    try {
+      const response = await http.delete<SuccessResponse<{ id: number }>>(
+        `/projects/${projectId}/members/${userId}`
+      );
+      return response.data.data;
+    } catch (err) {
+      this.handleError(err);
+    }
+  }
 }
 
 const projectsService = new ProjectsService();

@@ -6,16 +6,10 @@ import { useToast } from "@/hooks/useToast";
 import notificationsService from "@/services/notifications.service";
 import { NotificationDTO } from "@/dto/notifications";
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown time";
+import { formatDateTime } from "@/utils/dateUtil";
 
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatDate(value: string) {
+  return formatDateTime(value);
 }
 
 export default function NotificationsPage() {
@@ -23,20 +17,35 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
-  const loadNotifications = useCallback(async (unreadOnly: boolean) => {
-    setIsLoading(true);
-    try {
-      const data = await notificationsService.list({ unreadOnly, limit: 50 });
-      setNotifications(data || []);
-    } catch (err) {
-      const message =
-        (err as { message?: string })?.message || "Failed to load notifications.";
-      showToast(message, "error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [showToast]);
+  const loadNotifications = useCallback(
+    async (unreadOnly: boolean, nextOffset = 0) => {
+      setIsLoading(true);
+      try {
+        const data = await notificationsService.list({
+          unreadOnly,
+          limit: 50,
+          offset: nextOffset,
+        });
+        const items = data || [];
+        setHasMore(items.length === 50);
+
+        setNotifications((prev) =>
+          nextOffset === 0 ? items : [...prev, ...items]
+        );
+        setOffset(nextOffset);
+      } catch (err) {
+        const message =
+          (err as { message?: string })?.message || "Failed to load notifications.";
+        showToast(message, "error");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [showToast]
+  );
 
   useEffect(() => {
     void loadNotifications(showUnreadOnly);
@@ -114,42 +123,55 @@ export default function NotificationsPage() {
               <div className="empty-state-desc">Loading notifications...</div>
             </div>
           ) : notifications.length ? (
-            notifications.map((item) => (
-              <div
-                key={item.id}
-                className="task-item"
-                style={
-                  item.read
-                    ? undefined
-                    : {
-                        border: "1px solid rgba(45,212,191,0.18)",
-                        background: "rgba(45,212,191,0.04)",
-                      }
-                }
-              >
-                <div className="task-info">
-                  <div className="task-name">{item.title || "Notification"}</div>
-                  <div className="task-meta-row">
-                    <span className="task-due">{item.message}</span>
-                    <span className="task-due">{formatDate(item.createdAt)}</span>
+            <>
+              {notifications.map((item) => (
+                <div
+                  key={item.id}
+                  className="task-item"
+                  style={
+                    item.read
+                      ? undefined
+                      : {
+                          border: "1px solid rgba(45,212,191,0.18)",
+                          background: "rgba(45,212,191,0.04)",
+                        }
+                  }
+                >
+                  <div className="task-info">
+                    <div className="task-name">{item.title || "Notification"}</div>
+                    <div className="task-meta-row">
+                      <span className="task-due">{item.message}</span>
+                      <span className="task-due">{formatDate(item.createdAt)}</span>
+                    </div>
                   </div>
+                  {!item.read ? (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => void handleMarkRead(item.id)}
+                    >
+                      Mark read
+                    </button>
+                  ) : null}
                 </div>
-                {!item.read ? (
+              ))}
+              {hasMore ? (
+                <div style={{ padding: "1rem", textAlign: "center" }}>
                   <button
                     className="btn btn-secondary btn-sm"
-                    onClick={() => void handleMarkRead(item.id)}
+                    onClick={() => void loadNotifications(showUnreadOnly, offset + 50)}
+                    disabled={isLoading}
                   >
-                    Mark read
+                    {isLoading ? "Loading..." : "Load more"}
                   </button>
-                ) : null}
-              </div>
-            ))
+                </div>
+              ) : null}
+            </>
           ) : (
-              <div className="empty-state">
-                <div className="empty-state-title">No notifications</div>
-                <div className="empty-state-desc">You&apos;re all caught up.</div>
-              </div>
-            )}
+            <div className="empty-state">
+              <div className="empty-state-title">No notifications</div>
+              <div className="empty-state-desc">You&apos;re all caught up.</div>
+            </div>
+          )}
         </div>
       </div>
     </div>

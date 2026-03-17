@@ -1,3 +1,5 @@
+import { TeamMember } from "@/dto/dashboard";
+
 export function TeamCard({ members }: { members: TeamMember[] }) {
   const statusColor: Record<TeamMember["status"], string> = {
     Online: "var(--teal-400)",

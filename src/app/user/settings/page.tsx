@@ -106,7 +106,7 @@ export default function SettingsPage() {
         const meResponse = (await userService.getCurrentUser()) as
           | LoadedUserShape
           | { data?: LoadedUserShape };
-        const me = ("data" in meResponse ? meResponse.data : meResponse) || {};
+        const me: LoadedUserShape = "data" in meResponse && meResponse.data ? meResponse.data : meResponse as LoadedUserShape;
 
         setProfile((prev) => ({
           ...prev,

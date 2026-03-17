@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/context/auth-context";
+import { getEchoInstance } from "@/utils/echo";
 import notificationsService from "@/services/notifications.service";
 import { NotificationDTO } from "@/dto/notifications";
 
@@ -21,11 +23,19 @@ function formatRelativeTime(value: string) {
 }
 
 export default function Notifications() {
+  const { user } = useAuth();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const userId = (() => {
+    if (!user) return null;
+    if (typeof user.id === "number") return user.id;
+    const parsed = Number(user.id);
+    return Number.isFinite(parsed) ? parsed : null;
+  })();
 
   const loadUnreadCount = async () => {
     try {
@@ -69,6 +79,44 @@ export default function Notifications() {
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let channel: any;
+    let isMounted = true;
+
+    void getEchoInstance()
+      .then((echo) => {
+        if (!isMounted) return;
+        channel = echo.private(`user.${userId}`);
+
+        const handleNotification = (payload: unknown) => {
+          const notification = (payload as any)?.notification as NotificationDTO | undefined;
+          if (!notification) return;
+
+          setNotifications((prev) => [notification, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        };
+
+        channel.listen("notification.created", handleNotification);
+        channel.listen("NotificationCreated", handleNotification);
+      })
+      .catch((err) => {
+        // Fallback: if real-time transport fails, we still function.
+        // eslint-disable-next-line no-console
+        console.warn("Realtime notifications unavailable", err);
+      });
+
+    return () => {
+      isMounted = false;
+      if (channel) {
+        channel.stopListening("notification.created");
+        channel.stopListening("NotificationCreated");
+        channel.unsubscribe();
+      }
+    };
+  }, [userId]);
 
   const hasUnread = useMemo(() => unreadCount > 0, [unreadCount]);
 

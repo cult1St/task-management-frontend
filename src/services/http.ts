@@ -1,4 +1,5 @@
 import axios from "axios";
+import { logError } from "@/utils/telemetry";
 
 const baseURL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL;
 if (!baseURL) {
@@ -26,6 +27,8 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
     (response) => response,
     (error) => {
+        logError(error, { url: error?.config?.url, status: error?.response?.status });
+
         if(error.response?.status == 401){
             if(typeof window != "undefined"){
                 sessionStorage.removeItem("authToken");

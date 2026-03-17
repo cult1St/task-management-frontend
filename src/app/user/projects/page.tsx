@@ -1,11 +1,14 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import projectsService from "@/services/projects.service";
 import { CreateProjectPayload, ProjectDTO, ProjectStatus } from "@/dto/projects";
 import { ProjectInviteUserOptionDTO } from "@/dto/invitations";
+import { formatShortDate } from "@/utils/dateUtil";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
+import ProjectMembersModal from "./components/ProjectMembersModal";
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   ACTIVE: "Active",
@@ -31,6 +34,7 @@ function resolveUserName(user: ProjectInviteUserOptionDTO) {
 
 export default function ProjectsPage() {
   const { toasts, showToast, removeToast } = useToast();
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "COMPLETED" | "ARCHIVED">(
     "ALL"
@@ -50,24 +54,38 @@ export default function ProjectsPage() {
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | "">("");
   const [selectedUserId, setSelectedUserId] = useState<number | "">("");
+  const [membersProjectId, setMembersProjectId] = useState<number | null>(null);
+  const [membersProjectName, setMembersProjectName] = useState<string>("");
   const [inviteRole, setInviteRole] = useState("Contributor");
   const [userQuery, setUserQuery] = useState("");
   const [userOptions, setUserOptions] = useState<ProjectInviteUserOptionDTO[]>([]);
   const [isUserSearchLoading, setIsUserSearchLoading] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const list = await projectsService.list(filter === "ALL" ? undefined : filter);
-        setProjects(list || []);
-      } catch (err) {
-        const message =
-          (err as { message?: string })?.message || "Failed to load projects.";
-        showToast(message, "error");
-      }
-    };
-    void load();
+  const loadProjects = useCallback(async () => {
+    try {
+      const list = await projectsService.list(filter === "ALL" ? undefined : filter);
+      setProjects(list || []);
+    } catch (err) {
+      const message =
+        (err as { message?: string })?.message || "Failed to load projects.";
+      showToast(message, "error");
+    }
   }, [filter, showToast]);
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+
+  useEffect(() => {
+    const projectIdParam = searchParams.get("projectId");
+    const projectId = projectIdParam ? Number(projectIdParam) : undefined;
+    if (!projectId || !projects.length) return;
+
+    const project = projects.find((p) => p.id === projectId);
+    if (project) {
+      openMembersModal(projectId, project.name);
+    }
+  }, [projects, searchParams]);
 
   useEffect(() => {
     if (!isInviteModalOpen) return;
@@ -113,6 +131,11 @@ export default function ProjectsPage() {
     setUserQuery("");
     setUserOptions([]);
     setIsInviteModalOpen(true);
+  };
+
+  const openMembersModal = (projectId: number, projectName: string) => {
+    setMembersProjectId(projectId);
+    setMembersProjectName(projectName);
   };
 
   const handleCreateProject = async () => {
@@ -244,11 +267,22 @@ export default function ProjectsPage() {
                   </div>
                 ))}
               </div>
-              <span className="project-due">Due: {project.dueDate || "No due date"}</span>
+              <span className="project-due">
+                Due: {project.dueDate ? formatShortDate(project.dueDate) : "No due date"}
+              </span>
             </div>
-            <div style={{ marginTop: "0.9rem" }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => openInviteModal(project.id)}>
+            <div style={{ marginTop: "0.9rem", display: "flex", gap: "0.5rem" }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => openInviteModal(project.id)}
+              >
                 Invite to Project
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => openMembersModal(project.id, project.name)}
+              >
+                Manage Members
               </button>
             </div>
           </div>
@@ -428,6 +462,17 @@ export default function ProjectsPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {membersProjectId ? (
+        <ProjectMembersModal
+          projectId={membersProjectId}
+          projectName={membersProjectName}
+          onClose={() => setMembersProjectId(null)}
+          onMembersChanged={() => {
+            void loadProjects();
+          }}
+        />
       ) : null}
     </div>
   );

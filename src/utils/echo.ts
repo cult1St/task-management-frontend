@@ -8,7 +8,7 @@ import type Pusher from "pusher-js";
  */
 declare global {
   // eslint-disable-next-line no-var
-  var __NEXT_ECHO__: Echo | undefined;
+  var __NEXT_ECHO__: Echo<any> | undefined;
 }
 
 /**
@@ -17,7 +17,7 @@ declare global {
  * - Fully typed
  * - Cached singleton
  */
-export async function getEchoInstance(): Promise<Echo> {
+export async function getEchoInstance(): Promise<Echo<any>> {
   if (typeof window === "undefined") {
     throw new Error("Echo must be used only in the browser");
   }
@@ -75,11 +75,11 @@ export async function getEchoInstance(): Promise<Echo> {
       console.debug("[Echo] Pusher connected");
     });
 
-    connector.pusher.connection.bind("error", (error) => {
+    connector.pusher.connection.bind("error", (error: unknown) => {
       console.error("[Echo] Pusher error", error);
     });
 
-    connector.pusher.connection.bind("state_change", (states) => {
+    connector.pusher.connection.bind("state_change", (states: unknown) => {
       console.debug("[Echo] State change", states);
     });
   }

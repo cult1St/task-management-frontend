@@ -1,4 +1,4 @@
-interface Task {
+export interface Task {
   id: number;
   name: string;
   done: boolean;
@@ -7,7 +7,7 @@ interface Task {
   overdue?: boolean;
 }
 
-interface ActivityItem {
+export interface ActivityItem {
   id: number;
   actor: string;
   actorIsYou?: boolean;
@@ -16,16 +16,16 @@ interface ActivityItem {
   color: string;
 }
 
-interface Project {
+export interface Project {
   id: number;
   name: string;
   percent: number;
   fillClass: string;
 }
 
-type Priority = "HIGH" | "MEDIUM" | "LOW";
+export type Priority = "HIGH" | "MEDIUM" | "LOW";
 
-interface Deadline {
+export interface Deadline {
   id: number;
   name: string;
   when: string;
@@ -34,7 +34,7 @@ interface Deadline {
   chipClass: string;
 }
 
-interface TeamMember {
+export interface TeamMember {
   id: number;
   initials: string;
   name: string;

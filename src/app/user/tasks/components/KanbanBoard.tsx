@@ -1,4 +1,5 @@
 import { TaskDTO, TaskPriority, TaskStatus } from "@/dto/tasks";
+import { formatShortDate } from "@/utils/dateUtil";
 
 type KanbanBoardProps = {
   groupedTasks: Record<TaskStatus, TaskDTO[]>;
@@ -83,7 +84,9 @@ export default function KanbanBoard({
                   </div>
                 ) : null}
                 <div className="kanban-task-footer">
-                  <span className="kanban-task-due">Due: {task.dueDate || "No due date"}</span>
+                  <span className="kanban-task-due">
+                    Due: {task.dueDate ? formatShortDate(task.dueDate) : "No due date"}
+                  </span>
                   <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                     <div className="dp-avatar avatar-a">{task.assigneeInitials || "NA"}</div>
                     <button className="btn btn-secondary btn-sm" onClick={() => onOpenEdit(task)}>

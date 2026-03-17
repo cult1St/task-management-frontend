@@ -1,3 +1,5 @@
+import { ActivityItem } from "@/dto/dashboard";
+
 export function ActivityFeed({ items }: { items: ActivityItem[] }) {
   return (
     <div className="card">

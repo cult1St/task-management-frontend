@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { logEvent } from "@/utils/telemetry";
 import calendarService from "@/services/calendar.service";
 import {
   CalendarEventDTO,
@@ -33,7 +34,9 @@ export default function CalendarPage() {
   const [search] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [draftEvent, setDraftEvent] = useState<CreateCalendarEventPayload>(EMPTY_DRAFT);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventDTO | null>(null);
 
   // ✅ todayISO derived from local date — fixes the off-by-one highlight
   const todayISO = toISODate(new Date());
@@ -94,12 +97,13 @@ export default function CalendarPage() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
 
   const handleDayClick = (_date: Date, iso: string) => {
+    setSelectedEvent(null);
     setDraftEvent({ ...EMPTY_DRAFT, date: iso });
     setIsModalOpen(true);
   };
 
   // ── Event creation ────────────────────────────────────────────────────────────
-  const handleCreateEvent = async () => {
+  const handleSaveEvent = async () => {
     if (!draftEvent.title.trim()) {
       showToast("Event title is required.", "error");
       return;
@@ -107,18 +111,57 @@ export default function CalendarPage() {
 
     setIsSaving(true);
     try {
-      const created = await calendarService.create(draftEvent);
-      if (created) {
-        setEvents((prev) => [...prev, created]);
-        showToast("Event created!", "success");
+      if (selectedEvent) {
+        const updated = await calendarService.update(selectedEvent.id, draftEvent);
+        if (updated) {
+          setEvents((prev) =>
+            prev.map((event) => (event.id === selectedEvent.id ? updated : event))
+          );
+          showToast("Event updated!", "success");
+          logEvent("calendar.event_updated", { eventId: updated.id });
+        }
+      } else {
+        const created = await calendarService.create(draftEvent);
+        if (created) {
+          setEvents((prev) => [...prev, created]);
+          showToast("Event created!", "success");
+          logEvent("calendar.event_created", { eventId: created.id });
+        }
       }
+
       setIsModalOpen(false);
+      setSelectedEvent(null);
       setDraftEvent(EMPTY_DRAFT);
     } catch (err) {
-      const message = (err as { message?: string })?.message || "Could not create event.";
+      const message =
+        (err as { message?: string })?.message ||
+        "Could not save event. Please try again.";
       showToast(message, "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!selectedEvent) return;
+
+    setIsDeleting(true);
+    try {
+      await calendarService.remove(selectedEvent.id);
+      setEvents((prev) => prev.filter((event) => event.id !== selectedEvent.id));
+      showToast("Event deleted.", "success");
+      logEvent("calendar.event_deleted", { eventId: selectedEvent.id });
+      setIsModalOpen(false);
+      setSelectedEvent(null);
+      setDraftEvent(EMPTY_DRAFT);
+    } catch (err) {
+      const message =
+        (err as { message?: string })?.message ||
+        "Could not delete event. Please try again.";
+      showToast(message, "error");
+      logEvent("calendar.event_delete_failed", { error: message });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -145,6 +188,18 @@ export default function CalendarPage() {
             eventsByDate={eventsByDate}
             todayISO={todayISO}
             onDayClick={handleDayClick}
+            onEventClick={(event) => {
+              setSelectedEvent(event);
+              setDraftEvent({
+                title: event.title,
+                date: event.date,
+                startTime: event.startTime || "",
+                endTime: event.endTime || "",
+                color: event.color || "teal",
+                description: event.description || "",
+              });
+              setIsModalOpen(true);
+            }}
           />
         </div>
 
@@ -159,10 +214,15 @@ export default function CalendarPage() {
       {isModalOpen && (
         <CreateEventModal
           draftEvent={draftEvent}
-          isSaving={isSaving}
+          isSaving={isSaving || isDeleting}
           onChange={setDraftEvent}
-          onClose={() => setIsModalOpen(false)}
-          onSubmit={handleCreateEvent}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedEvent(null);
+          }}
+          onSubmit={handleSaveEvent}
+          onDelete={selectedEvent ? handleDeleteEvent : undefined}
+          isEditMode={Boolean(selectedEvent)}
         />
       )}
     </div>

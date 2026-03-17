@@ -1,3 +1,5 @@
+import { Deadline } from "@/dto/dashboard";
+
 export function DeadlinesCard({ deadlines }: { deadlines: Deadline[] }) {
   return (
     <div className="card" style={{ marginBottom: "1.25rem" }}>

@@ -1,3 +1,5 @@
+import { Project } from "@/dto/dashboard";
+
 export function ProjectProgress({ projects }: { projects: Project[] }) {
   return (
     <div className="progress-card">

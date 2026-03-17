@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/auth-context";
+import { useToast } from "@/hooks/useToast";
 import tasksService from "@/services/tasks.service";
 import projectsService from "@/services/projects.service";
 import notificationsService from "@/services/notifications.service";
@@ -9,6 +10,12 @@ import { TaskDTO } from "@/dto/tasks";
 import { ProjectDTO } from "@/dto/projects";
 import { NotificationDTO } from "@/dto/notifications";
 import { ProjectMemberDTO } from "@/dto/invitations";
+import { TeamMember, ActivityItem, Project } from "@/dto/dashboard";
+import {
+  formatRelativeTime,
+  formatShortDate,
+} from "@/utils/dateUtil";
+import ToastContainer from "@/components/ToastContainer";
 import {
   StatCard,
   ActivityFeed,
@@ -19,28 +26,6 @@ import {
 } from "./components";
 
 const PROJECT_FILL_CLASSES = ["fill-teal", "fill-violet", "fill-amber", "fill-rose"] as const;
-
-const formatShortDate = (value?: string) => {
-  if (!value) return "No date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "No date";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-};
-
-const formatRelativeTime = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "just now";
-
-  const diffMs = Date.now() - date.getTime();
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-
-  if (diffMs < minute) return "just now";
-  if (diffMs < hour) return `${Math.floor(diffMs / minute)}m ago`;
-  if (diffMs < day) return `${Math.floor(diffMs / hour)}h ago`;
-  return `${Math.floor(diffMs / day)}d ago`;
-};
 
 const toInitials = (value: string) =>
   value
@@ -136,9 +121,18 @@ const mapNotificationColor = (type: NotificationDTO["type"]) => {
   }
 };
 
-const buildTaskList = (tasks: TaskDTO[]) => {
+const buildTaskList = (tasks: TaskDTO[], currentUserId?: number) => {
   const today = new Date();
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+  const parseAssigneeId = (task: TaskDTO) => {
+    if (typeof task.assignedToId === "number") return task.assignedToId;
+    if (typeof task.assignee?.id === "number") return task.assignee.id;
+    if (typeof task.assignee?.userId === "number") return task.assignee.userId;
+    const parsed = Number(task.assignedToId ?? task.assignee?.id ?? task.assignee?.userId);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
   return [...tasks]
     .sort((a, b) => {
       const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
@@ -154,6 +148,9 @@ const buildTaskList = (tasks: TaskDTO[]) => {
         task.status !== "DONE" &&
         dueDate!.getTime() < startOfToday;
 
+      const assigneeId = parseAssigneeId(task);
+      const canToggle = currentUserId !== undefined && assigneeId !== undefined && currentUserId === assigneeId;
+
       return {
         id: task.id,
         name: task.title,
@@ -161,6 +158,7 @@ const buildTaskList = (tasks: TaskDTO[]) => {
         priority: task.priority,
         due: formatShortDate(task.dueDate),
         overdue,
+        canToggle,
       };
     });
 };
@@ -231,10 +229,10 @@ const loadProjectMembers = async (projects: ProjectDTO[], tasks: TaskDTO[]) => {
     }
   });
 
-  return Array.from(unique.values()).map((member) => {
+  return Array.from(unique.values()).map((member): TeamMember => {
     const name =
       member.fullName || member.full_name || member.name || member.email || "Team member";
-    const status =
+    const status: "Online" | "Away" | "Offline" =
       member.status === "ACCEPTED"
         ? "Online"
         : member.status === "PENDING"
@@ -254,61 +252,72 @@ const loadProjectMembers = async (projects: ProjectDTO[], tasks: TaskDTO[]) => {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { toasts, showToast, removeToast } = useToast();
 
   const [rawTasks, setRawTasks] = useState<TaskDTO[]>([]);
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const isMounted = useRef(true);
+
+  const loadDashboard = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const [taskData, projectData, notificationData] = await Promise.all([
+        tasksService.list(),
+        projectsService.list(),
+        notificationsService.list({ limit: 8 }),
+      ]);
+
+      if (!isMounted.current) return;
+
+      const safeTasks = taskData || [];
+      const safeProjects = projectData || [];
+      const safeNotifications = notificationData || [];
+
+      setRawTasks(safeTasks);
+      setProjects(buildProjectList(safeProjects));
+      setActivityItems(buildActivityItems(safeNotifications));
+
+      const members = await loadProjectMembers(safeProjects, safeTasks);
+      if (!isMounted.current) return;
+      setTeamMembers(members);
+    } catch (err) {
+      if (!isMounted.current) return;
+      const message =
+        (err as { message?: string })?.message ||
+        "Unable to load dashboard data. Please try again.";
+      setError(message);
+      showToast(message, "error");
+    } finally {
+      if (!isMounted.current) return;
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let active = true;
-
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const [taskData, projectData, notificationData] = await Promise.all([
-          tasksService.list(),
-          projectsService.list(),
-          notificationsService.list({ limit: 8 }),
-        ]);
-
-        if (!active) return;
-
-        const safeTasks = taskData || [];
-        const safeProjects = projectData || [];
-        const safeNotifications = notificationData || [];
-
-        setRawTasks(safeTasks);
-        setProjects(buildProjectList(safeProjects));
-        setActivityItems(buildActivityItems(safeNotifications));
-
-        const members = await loadProjectMembers(safeProjects, safeTasks);
-        if (!active) return;
-        setTeamMembers(members);
-      } catch {
-        if (!active) return;
-        setRawTasks([]);
-        setProjects([]);
-        setActivityItems([]);
-        setTeamMembers([]);
-      } finally {
-        if (active) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void load();
-
+    isMounted.current = true;
+    void loadDashboard();
     return () => {
-      active = false;
+      isMounted.current = false;
     };
   }, []);
 
   const displayName = user?.fullName || user?.full_name || user?.name || "Alex";
 
-  const tasks = useMemo(() => buildTaskList(rawTasks), [rawTasks]);
+  const currentUserId = (() => {
+    if (!user) return undefined;
+    if (typeof user.id === "number") return user.id;
+    const parsed = Number(user.id);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  })();
+
+  const tasks = useMemo(() => buildTaskList(rawTasks, currentUserId), [rawTasks, currentUserId]);
   const deadlines = useMemo(() => buildDeadlines(rawTasks), [rawTasks]);
 
   const stats = useMemo(() => {
@@ -332,22 +341,42 @@ export default function DashboardPage() {
     if (!target) return;
 
     const nextStatus = target.status === "DONE" ? "IN_PROGRESS" : "DONE";
+
+    // Optimistic UI update
+    setRawTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, status: nextStatus } : task
+      )
+    );
+
     try {
       const updated = await tasksService.update(taskId, { status: nextStatus }, "status");
+      if (updated) {
+        setRawTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId ? { ...task, status: updated.status || nextStatus } : task
+          )
+        );
+      }
+    } catch (err) {
+      const message =
+        (err as { message?: string })?.message ||
+        "Unable to update task status. Please try again.";
+      showToast(message, "error");
+
+      // Revert optimistic update
       setRawTasks((prev) =>
         prev.map((task) =>
-          task.id === taskId
-            ? { ...task, status: updated?.status || nextStatus }
-            : task
+          task.id === taskId ? { ...task, status: target.status } : task
         )
       );
-    } catch {
-      // keep UI stable even if update fails
     }
   };
 
   return (
     <div className="content-area">
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
       {/* Header */}
       <div
         className="page-header"
@@ -370,6 +399,24 @@ export default function DashboardPage() {
           <button className="btn btn-primary btn-sm">+ Add Task</button>
         </div>
       </div>
+
+      {error ? (
+        <div className="card" style={{ marginBottom: "1.25rem", border: "1px solid var(--rose-500)" }}>
+          <div className="card-header">
+            <span className="card-title">Unable to load dashboard</span>
+          </div>
+          <div style={{ padding: "1rem" }}>
+            <p style={{ margin: 0, color: "var(--rose-200)" }}>{error}</p>
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{ marginTop: "0.75rem" }}
+              onClick={() => void loadDashboard()}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Stats row */}
       <div className="stats-grid">
@@ -419,7 +466,12 @@ export default function DashboardPage() {
             <div style={{ padding: "0.25rem 1.5rem" }}>
               {tasks.length ? (
                 tasks.map((task) => (
-                  <TaskItem key={task.id} task={task} onToggle={handleToggleTask} />
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    onToggle={handleToggleTask}
+                    canToggle={task.canToggle}
+                  />
                 ))
               ) : (
                 <div style={{ padding: "0.75rem 0", color: "var(--slate-400)" }}>

@@ -139,7 +139,14 @@ export default function InvitationsPage() {
             current.map((invite) => (
               <div key={invite.id} className="task-item">
                 <div className="task-info">
-                  <div className="task-name">{invite.projectName}</div>
+                  <div className="task-name">
+                    <a
+                      href={`/user/projects?projectId=${invite.projectId}`}
+                      style={{ color: "inherit", textDecoration: "underline" }}
+                    >
+                      {invite.projectName}
+                    </a>
+                  </div>
                   <div className="task-meta-row">
                     <span className="task-due">
                       {activeTab === "received"

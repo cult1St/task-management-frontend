@@ -1,4 +1,14 @@
-﻿export function TaskItem({ task, onToggle }: { task: Task; onToggle: (id: number) => void }) {
+﻿import { Task, Priority } from "@/dto/dashboard";
+
+export function TaskItem({
+  task,
+  onToggle,
+  canToggle = true,
+}: {
+  task: Task;
+  onToggle: (id: number) => void;
+  canToggle?: boolean;
+}) {
   const priorityClass: Record<Priority, string> = {
     HIGH: "priority-high",
     MEDIUM: "priority-med",
@@ -8,8 +18,14 @@
   return (
     <div className="task-item">
       <div
-        className={`task-checkbox ${task.done ? "checked" : ""}`}
-        onClick={() => onToggle(task.id)}
+        className={`task-checkbox ${task.done ? "checked" : ""} ${
+          canToggle ? "" : "disabled"
+        }`}
+        onClick={() => {
+          if (!canToggle) return;
+          onToggle(task.id);
+        }}
+        title={canToggle ? undefined : "Only the assignee can update status"}
       >
         {task.done && "✓"}
       </div>

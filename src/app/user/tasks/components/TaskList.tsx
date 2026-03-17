@@ -1,4 +1,5 @@
 import { TaskDTO, TaskPriority } from "@/dto/tasks";
+import { formatShortDate } from "@/utils/dateUtil";
 
 type TaskListProps = {
   tasks: TaskDTO[];
@@ -21,7 +22,9 @@ export default function TaskList({ tasks, priorityClass, onOpenEdit }: TaskListP
                 <span className={`task-priority ${priorityClass[task.priority]}`}>
                   {task.priority}
                 </span>
-                <span className="task-due">Due: {task.dueDate || "No due date"}</span>
+                <span className="task-due">
+                  Due: {task.dueDate ? formatShortDate(task.dueDate) : "No due date"}
+                </span>
               </div>
             </div>
             <button className="btn btn-secondary btn-sm" onClick={() => onOpenEdit(task)}>

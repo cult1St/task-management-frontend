@@ -1,6 +1,8 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { formatShortDate } from "@/utils/dateUtil";
+import { logEvent } from "@/utils/telemetry";
 import tasksService from "@/services/tasks.service";
 import projectsService from "@/services/projects.service";
 import {
@@ -306,6 +308,11 @@ export default function TasksPage() {
       if (created) {
         setTasks((prev) => [created, ...prev]);
         showToast("Task created!", "success");
+        logEvent("task.created", {
+          id: created.id,
+          projectId: created.projectId,
+          priority: created.priority,
+        });
       }
       setIsModalOpen(false);
       setDraftTask({
@@ -343,10 +350,12 @@ export default function TasksPage() {
     try {
       await tasksService.update(taskId, { status });
       showToast("Task updated", "success");
+      logEvent("task.status_updated", { taskId, status });
     } catch (err) {
       const message =
         (err as { message?: string })?.message || "Failed to update task.";
       showToast(message, "error");
+      logEvent("task.status_update_failed", { taskId, status, error: message });
     }
   };
 
@@ -381,12 +390,12 @@ export default function TasksPage() {
 
     setIsUpdating(true);
     try {
-      console.log("second one");
       const updated = await tasksService.update(editTask.id, payload);
       if (updated) {
         setTasks((prev) =>
           prev.map((task) => (task.id === editTask.id ? updated : task))
         );
+        logEvent("task.updated", { taskId: updated.id, changes: payload });
       }
       showToast("Task updated", "success");
       setIsEditModalOpen(false);
@@ -395,6 +404,7 @@ export default function TasksPage() {
       const message =
         (err as { message?: string })?.message || "Failed to update task.";
       showToast(message, "error");
+      logEvent("task.update_failed", { taskId: editTask.id, error: message });
     } finally {
       setIsUpdating(false);
     }
@@ -537,7 +547,7 @@ export default function TasksPage() {
                       </div>
                     ) : null}
                     <div className="kanban-task-footer">
-                      <span className="kanban-task-due">Due: {task.dueDate || "No due date"}</span>
+                      <span className="kanban-task-due">Due: {task.dueDate ? formatShortDate(task.dueDate) : "No due date"}</span>
                       <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                         <div className="dp-avatar avatar-a">{task.assigneeInitials || "NA"}</div>
                         <button
@@ -571,7 +581,7 @@ export default function TasksPage() {
                     <span className={`task-priority ${PRIORITY_CLASS[task.priority]}`}>
                       {task.priority}
                     </span>
-                    <span className="task-due">Due: {task.dueDate || "No due date"}</span>
+                    <span className="task-due">Due: {task.dueDate ? formatShortDate(task.dueDate) : "No due date"}</span>
                   </div>
                 </div>
                 <button

@@ -236,7 +236,7 @@ PATCH /tasks/:taskId
 GET /projects/:projectId/assignees (accepted collaborators; can also reuse members endpoint)
 Notifications
 
-GET /notifications?unreadOnly=false&limit=20
+GET /notifications?unreadOnly=false&limit=20&offset=0
 GET /notifications/unread-count
 PATCH /notifications/:id/read
 PATCH /notifications/read-all
@@ -244,6 +244,8 @@ PATCH /notifications/read-all
 Project collaborators
 
 GET /projects/:projectId/members?status=accepted
+PATCH /projects/:projectId/members/:userId
+body: { role?: "string", status?: "ONLINE" | "AWAY" | "OFFLINE" }
 DELETE /projects/:projectId/members/:userId remove collaborator
 User search for inviting
 

@@ -3,9 +3,11 @@ import { CalendarEventColor, CreateCalendarEventPayload } from "@/dto/calendar";
 interface CreateEventModalProps {
   draftEvent: CreateCalendarEventPayload;
   isSaving: boolean;
+  isEditMode?: boolean;
   onChange: (updated: CreateCalendarEventPayload) => void;
   onClose: () => void;
   onSubmit: () => void;
+  onDelete?: () => void;
 }
 
 const COLOR_OPTIONS: CalendarEventColor[] = ["teal", "violet", "rose", "amber", "blue"];
@@ -16,6 +18,8 @@ export default function CreateEventModal({
   onChange,
   onClose,
   onSubmit,
+  isEditMode,
+  onDelete,
 }: CreateEventModalProps) {
   const set = (partial: Partial<CreateCalendarEventPayload>) =>
     onChange({ ...draftEvent, ...partial });
@@ -100,16 +104,25 @@ export default function CreateEventModal({
           </div>
         </div>
 
-        <div className="modal-footer">
+        <div className="modal-footer" style={{ gap: "0.5rem" }}>
           <button className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
+          {isEditMode && onDelete ? (
+            <button
+              className="btn btn-danger"
+              onClick={onDelete}
+              disabled={isSaving}
+            >
+              {isSaving ? "Deleting..." : "Delete"}
+            </button>
+          ) : null}
           <button
             className="btn btn-primary"
             onClick={onSubmit}
             disabled={isSaving}
           >
-            {isSaving ? "Creating..." : "Create Event"}
+            {isSaving ? (isEditMode ? "Saving..." : "Creating...") : isEditMode ? "Save" : "Create Event"}
           </button>
         </div>
       </div>

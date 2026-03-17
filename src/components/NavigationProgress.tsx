@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+// @ts-ignore
 import NProgress from "nprogress";
 import "nprogress/nprogress.css";
 
