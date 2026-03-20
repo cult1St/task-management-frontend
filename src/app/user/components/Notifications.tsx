@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
-import { getEchoInstance } from "@/utils/echo";
+import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
+import { createStompClient, notificationsDestination } from "@/utils/stomp";
 import notificationsService from "@/services/notifications.service";
 import { NotificationDTO } from "@/dto/notifications";
 
@@ -83,38 +84,50 @@ export default function Notifications() {
   useEffect(() => {
     if (!userId) return;
 
-    let channel: any;
     let isMounted = true;
+    let client: Client | null = null;
+    let subscription: StompSubscription | null = null;
 
-    void getEchoInstance()
-      .then((echo) => {
-        if (!isMounted) return;
-        channel = echo.private(`user.${userId}`);
+    const handleMessage = (message: IMessage) => {
+      try {
+        const payload = JSON.parse(message.body || "{}");
+        const notification =
+          (payload as any)?.notification ??
+          (payload as NotificationDTO | undefined);
+        if (!notification?.id) return;
 
-        const handleNotification = (payload: unknown) => {
-          const notification = (payload as any)?.notification as NotificationDTO | undefined;
-          if (!notification) return;
+        setNotifications((prev) => [notification, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      } catch {
+        // ignore malformed messages
+      }
+    };
 
-          setNotifications((prev) => [notification, ...prev]);
-          setUnreadCount((prev) => prev + 1);
-        };
-
-        channel.listen("notification.created", handleNotification);
-        channel.listen("NotificationCreated", handleNotification);
-      })
-      .catch((err) => {
-        // Fallback: if real-time transport fails, we still function.
+    try {
+      client = createStompClient();
+      client.onConnect = () => {
+        if (!isMounted || !client) return;
+        subscription = client.subscribe(notificationsDestination, handleMessage);
+      };
+      client.onStompError = (frame) => {
         // eslint-disable-next-line no-console
-        console.warn("Realtime notifications unavailable", err);
-      });
+        console.warn("STOMP error", frame.headers["message"], frame.body);
+      };
+      client.onWebSocketClose = () => {
+        // eslint-disable-next-line no-console
+        console.warn("Notifications socket closed");
+      };
+      client.activate();
+    } catch (err) {
+      // Fallback: if real-time transport fails, we still function.
+      // eslint-disable-next-line no-console
+      console.warn("Realtime notifications unavailable", err);
+    }
 
     return () => {
       isMounted = false;
-      if (channel) {
-        channel.stopListening("notification.created");
-        channel.stopListening("NotificationCreated");
-        channel.unsubscribe();
-      }
+      if (subscription) subscription.unsubscribe();
+      if (client) client.deactivate();
     };
   }, [userId]);
 

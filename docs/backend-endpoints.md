@@ -241,6 +241,11 @@ GET /notifications/unread-count
 PATCH /notifications/:id/read
 PATCH /notifications/read-all
 
+Realtime (SockJS + STOMP)
+WS endpoint: /ws (SockJS)
+Subscribe destination: /user/queue/notifications
+Auth: STOMP CONNECT header Authorization: Bearer <token>
+
 Project collaborators
 
 GET /projects/:projectId/members?status=accepted
