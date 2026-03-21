@@ -1,5 +1,8 @@
+"use client";
+
 import { CreateTaskPayload, ProjectAssigneeDTO, TaskPriority } from "@/dto/tasks";
 import { ProjectDTO } from "@/dto/projects";
+import { DatePickerField } from "@/components/DatePickerField";
 
 type TaskCreateModalProps = {
   isOpen: boolean;
@@ -75,11 +78,9 @@ export default function TaskCreateModal({
             </div>
             <div className="form-group">
               <label className="form-label">Due Date</label>
-              <input
-                type="date"
-                className="form-input"
+              <DatePickerField
                 value={draftTask.dueDate || ""}
-                onChange={(event) => onDraftChange({ dueDate: event.target.value })}
+                onChange={(value) => onDraftChange({ dueDate: value })}
               />
             </div>
           </div>

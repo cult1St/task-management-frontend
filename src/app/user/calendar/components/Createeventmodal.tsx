@@ -1,4 +1,7 @@
+"use client";
+
 import { CalendarEventColor, CreateCalendarEventPayload } from "@/dto/calendar";
+import { DatePickerField, TimePickerField } from "@/components/DatePickerField";
 
 interface CreateEventModalProps {
   draftEvent: CreateCalendarEventPayload;
@@ -49,11 +52,9 @@ export default function CreateEventModal({
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Date</label>
-              <input
-                type="date"
-                className="form-input"
+              <DatePickerField
                 value={draftEvent.date}
-                onChange={(e) => set({ date: e.target.value })}
+                onChange={(value) => set({ date: value })}
               />
             </div>
             <div className="form-group">
@@ -75,20 +76,16 @@ export default function CreateEventModal({
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Start Time</label>
-              <input
-                type="time"
-                className="form-input"
+              <TimePickerField
                 value={draftEvent.startTime || ""}
-                onChange={(e) => set({ startTime: e.target.value })}
+                onChange={(value) => set({ startTime: value })}
               />
             </div>
             <div className="form-group">
               <label className="form-label">End Time</label>
-              <input
-                type="time"
-                className="form-input"
+              <TimePickerField
                 value={draftEvent.endTime || ""}
-                onChange={(e) => set({ endTime: e.target.value })}
+                onChange={(value) => set({ endTime: value })}
               />
             </div>
           </div>

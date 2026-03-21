@@ -21,6 +21,7 @@
     "next-cloudinary": "^6.17.5",
     "nprogress": "^0.2.0",
     "react": "^19.0.0",
+    "react-datepicker": "^9.1.0",
     "react-dom": "^19.0.0",
     "sockjs-client": "^1.6.1",
     "sweetalert2": "^11.26.3"

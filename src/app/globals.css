@@ -2688,3 +2688,47 @@ body::before {
     transform: none !important;
   }
 } */
+
+.datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker-wrapper,
+.react-datepicker__input-container {
+  width: 100%;
+}
+
+.react-datepicker {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #0f172a;
+  color: var(--white);
+}
+
+.react-datepicker__header {
+  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker__day-name,
+.react-datepicker__day,
+.react-datepicker__time-name {
+  color: var(--white);
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected,
+.react-datepicker__time-list-item--selected {
+  background: var(--teal-500);
+  color: #0f172a;
+}
+
+.react-datepicker__time-container {
+  border-left: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.react-datepicker__time-list-item:hover,
+.react-datepicker__day:hover {
+  background: rgba(45, 212, 191, 0.2);
+}

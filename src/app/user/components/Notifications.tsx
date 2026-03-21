@@ -89,6 +89,8 @@ export default function Notifications() {
     let subscription: StompSubscription | null = null;
 
     const handleMessage = (message: IMessage) => {
+      // eslint-disable-next-line no-console
+      console.debug("[Notifications] STOMP message received", message.body);
       try {
         const payload = JSON.parse(message.body || "{}");
         const notification =

@@ -9,6 +9,7 @@ import { formatShortDate } from "@/utils/dateUtil";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import ProjectMembersModal from "./components/ProjectMembersModal";
+import { DatePickerField } from "@/components/DatePickerField";
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   ACTIVE: "Active",
@@ -348,12 +349,10 @@ export default function ProjectsPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Due Date</label>
-                  <input
-                    type="date"
-                    className="form-input"
+                  <DatePickerField
                     value={draftProject.dueDate || ""}
-                    onChange={(event) =>
-                      setDraftProject((prev) => ({ ...prev, dueDate: event.target.value }))
+                    onChange={(value) =>
+                      setDraftProject((prev) => ({ ...prev, dueDate: value }))
                     }
                   />
                 </div>
