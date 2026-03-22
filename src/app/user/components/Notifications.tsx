@@ -108,6 +108,7 @@ export default function Notifications() {
     try {
       client = createStompClient();
       client.onConnect = () => {
+        console.debug("[Notifications] STOMP connected, subscribing to notifications");
         if (!isMounted || !client) return;
         subscription = client.subscribe(notificationsDestination, handleMessage);
       };
