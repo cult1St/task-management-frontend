@@ -82,55 +82,117 @@ export default function Notifications() {
   }, []);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.warn("[Notifications] ❌ No userId, skipping WebSocket connection");
+      return;
+    }
+
+    console.log("[Notifications] 🚀 Initializing WebSocket connection");
+    console.log("[Notifications] 👤 userId:", userId);
+    console.log("[Notifications] 📡 destination:", notificationsDestination);
 
     let isMounted = true;
     let client: Client | null = null;
     let subscription: StompSubscription | null = null;
 
     const handleMessage = (message: IMessage) => {
-      // eslint-disable-next-line no-console
-      console.debug("[Notifications] STOMP message received", message.body);
+      console.debug("[Notifications] 📩 RAW MESSAGE:", message);
+      console.debug("[Notifications] 📩 BODY:", message.body);
+
       try {
         const payload = JSON.parse(message.body || "{}");
+        console.debug("[Notifications] ✅ Parsed payload:", payload);
+
         const notification =
           (payload as any)?.notification ??
           (payload as NotificationDTO | undefined);
-        if (!notification?.id) return;
+
+        if (!notification?.id) {
+          console.warn("[Notifications] ⚠️ Invalid notification payload", payload);
+          return;
+        }
+        if(notification?.userId != userId){
+          return;
+        }
+
+        console.log("[Notifications] 🎉 New notification received:", notification);
 
         setNotifications((prev) => [notification, ...prev]);
         setUnreadCount((prev) => prev + 1);
-      } catch {
-        // ignore malformed messages
+      } catch (err) {
+        console.error("[Notifications] ❌ Failed to parse message", err);
       }
     };
 
     try {
       client = createStompClient();
-      client.onConnect = () => {
-        console.debug("[Notifications] STOMP connected, subscribing to notifications");
-        if (!isMounted || !client) return;
+
+      console.log("[Notifications] 🧩 STOMP client created");
+
+      client.onConnect = (frame) => {
+        console.log("[Notifications] ✅ STOMP CONNECTED");
+        console.log("[Notifications] 🔗 Connected frame:", frame);
+
+        if (!isMounted || !client) {
+          console.warn("[Notifications] ⚠️ Component unmounted before subscribe");
+          return;
+        }
+
+        console.log("[Notifications] 📡 Subscribing to:", notificationsDestination);
+
         subscription = client.subscribe(notificationsDestination, handleMessage);
+
+        console.log("[Notifications] ✅ Subscription created:", subscription?.id);
       };
+
+      client.onDisconnect = () => {
+        console.warn("[Notifications] 🔌 STOMP disconnected");
+      };
+
       client.onStompError = (frame) => {
-        // eslint-disable-next-line no-console
-        console.warn("STOMP error", frame.headers["message"], frame.body);
+        console.error("[Notifications] ❌ STOMP ERROR");
+        console.error("[Notifications] 🧾 Headers:", frame.headers);
+        console.error("[Notifications] 🧾 Body:", frame.body);
       };
-      client.onWebSocketClose = () => {
-        // eslint-disable-next-line no-console
-        console.warn("Notifications socket closed");
+
+      client.onWebSocketClose = (event) => {
+        console.warn("[Notifications] 🔌 WebSocket CLOSED");
+        console.warn("[Notifications] 📉 Code:", event.code);
+        console.warn("[Notifications] 📉 Reason:", event.reason);
       };
+
+      client.onWebSocketError = (event) => {
+        console.error("[Notifications] ❌ WebSocket ERROR", event);
+      };
+
+      client.beforeConnect = () => {
+        console.log("[Notifications] ⏳ Attempting STOMP connection...");
+      };
+
+      client.debug = (msg) => {
+        console.debug("[STOMP DEBUG]", msg);
+      };
+
+      console.log("[Notifications] ⚡ Activating client...");
       client.activate();
     } catch (err) {
-      // Fallback: if real-time transport fails, we still function.
-      // eslint-disable-next-line no-console
-      console.warn("Realtime notifications unavailable", err);
+      console.error("[Notifications] ❌ Failed to initialize WebSocket", err);
     }
 
     return () => {
+      console.log("[Notifications] 🧹 Cleaning up WebSocket");
+
       isMounted = false;
-      if (subscription) subscription.unsubscribe();
-      if (client) client.deactivate();
+
+      if (subscription) {
+        console.log("[Notifications] 📴 Unsubscribing:", subscription.id);
+        subscription.unsubscribe();
+      }
+
+      if (client) {
+        console.log("[Notifications] 🔌 Deactivating client");
+        client.deactivate();
+      }
     };
   }, [userId]);
 

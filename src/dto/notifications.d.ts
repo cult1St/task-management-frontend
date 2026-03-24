@@ -12,6 +12,7 @@ export interface NotificationDTO {
   title?: string;
   message: string;
   read: boolean;
+  userId?: number;
   createdAt: string;
   actorName?: string;
 }

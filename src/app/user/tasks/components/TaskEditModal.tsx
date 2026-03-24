@@ -114,12 +114,12 @@ export default function TaskEditModal({
                 <option value="">
                   {isAssigneesLoading ? "Loading collaborators..." : "Unassigned"}
                 </option>
-                {projectAssignees.map((assignee) => {
-                  console.log(assignee);
-                  return (<option  value={assignee.id} >
+                {projectAssignees.map((assignee) => (
+                  <option key={assignee.id} value={assignee.id} >
                     {assignee.name}
-                  </option>)
-                })}
+                  </option>
+                  )
+                )}
               </select>
             </div>
           </div>
