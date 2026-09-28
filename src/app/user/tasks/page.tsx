@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { logEvent } from "@/utils/telemetry";
 import tasksService from "@/services/tasks.service";
 import projectsService from "@/services/projects.service";
@@ -54,6 +55,8 @@ const DEFAULT_DRAFT_TASK: CreateTaskPayload = {
 export default function TasksPage() {
   const { toasts, showToast, removeToast } = useToast();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [tasks, setTasks] = useState<TaskDTO[]>([]);
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [isProjectsLoading, setIsProjectsLoading] = useState(false);
@@ -123,13 +126,13 @@ export default function TasksPage() {
     }
   };
 
-  const openCreateModal = (status?: TaskStatus) => {
+  const openCreateModal = useCallback((status?: TaskStatus) => {
     setDraftTask((prev) => ({
       ...prev,
       status: status ?? prev.status ?? "TODO",
     }));
     setIsModalOpen(true);
-  };
+  }, []);
 
   const closeCreateModal = () => {
     setIsModalOpen(false);
@@ -193,6 +196,16 @@ export default function TasksPage() {
     // load once for options and filters
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      openCreateModal();
+      // Remove the query param to prevent re-opening on refresh
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('create');
+      router.replace(newUrl.pathname + newUrl.search);
+    }
+  }, [searchParams, openCreateModal, router]);
 
   useEffect(() => {
     const loadTasks = async () => {

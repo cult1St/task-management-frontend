@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/useToast";
 import tasksService from "@/services/tasks.service";
@@ -253,6 +254,7 @@ const loadProjectMembers = async (projects: ProjectDTO[], tasks: TaskDTO[]) => {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { toasts, showToast, removeToast } = useToast();
+  const router = useRouter();
 
   const [rawTasks, setRawTasks] = useState<TaskDTO[]>([]);
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
@@ -263,7 +265,7 @@ export default function DashboardPage() {
 
   const isMounted = useRef(true);
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -298,7 +300,7 @@ export default function DashboardPage() {
       if (!isMounted.current) return;
       setIsLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -306,7 +308,7 @@ export default function DashboardPage() {
     return () => {
       isMounted.current = false;
     };
-  }, []);
+  }, [loadDashboard]);
 
   const displayName = user?.fullName || user?.full_name || user?.name || "Alex";
 
@@ -396,7 +398,7 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button className="btn btn-secondary btn-sm">?? Reports</button>
-          <button className="btn btn-primary btn-sm">+ Add Task</button>
+          <button className="btn btn-primary btn-sm" onClick={() => router.push('/user/tasks?create=true')}>+ Add Task</button>
         </div>
       </div>
 

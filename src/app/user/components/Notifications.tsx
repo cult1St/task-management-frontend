@@ -8,6 +8,10 @@ import { createStompClient, notificationsDestination } from "@/utils/stomp";
 import notificationsService from "@/services/notifications.service";
 import { NotificationDTO } from "@/dto/notifications";
 
+interface NotificationPayload {
+  notification?: NotificationDTO;
+}
+
 function formatRelativeTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "just now";
@@ -100,11 +104,11 @@ export default function Notifications() {
       console.debug("[Notifications] 📩 BODY:", message.body);
 
       try {
-        const payload = JSON.parse(message.body || "{}");
+        const payload: NotificationPayload = JSON.parse(message.body || "{}");
         console.debug("[Notifications] ✅ Parsed payload:", payload);
 
         const notification =
-          (payload as any)?.notification ??
+          payload.notification ??
           (payload as NotificationDTO | undefined);
 
         if (!notification?.id) {

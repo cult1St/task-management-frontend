@@ -22,6 +22,27 @@ interface SuccessResponse<T> {
   data: T;
 }
 
+interface UserData {
+  id?: string | number;
+  fullName?: string;
+  full_name?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  avatarUrl?: string;
+  avatar_url?: string;
+  avatar?: string;
+  profile_image?: string;
+}
+
+interface SettingsData {
+  notifications?: NotificationPreferencesPayload;
+  security?: SecuritySettingsPayload;
+  appearance?: AppearanceSettingsPayload;
+  integrations?: IntegrationSettingsPayload;
+  workspace?: WorkspaceSettingsPayload;
+}
+
 class UserService {
   private handleError(err: unknown): never {
     const axiosError = err as AxiosError<ErrorResponse>;
@@ -45,7 +66,7 @@ class UserService {
   async getCurrentUser() {
     try {
       const response =
-        await http.get<SuccessResponse<any>>("/users/me");
+        await http.get<SuccessResponse<UserData>>("/users/me");
 
       return response.data.data; // unwrap SuccessResponse
     } catch (err) {
@@ -56,7 +77,7 @@ class UserService {
   async updateProfile(payload: UserProfilePayload) {
     try {
       const response =
-        await http.patch<SuccessResponse<any>>("/users/me", payload);
+        await http.patch<SuccessResponse<UserData>>("/users/me", payload);
 
       return response.data.data; // unwrap SuccessResponse
     } catch (err) {
@@ -68,7 +89,7 @@ class UserService {
   async getSettings() {
     try {
       const response =
-        await http.get<SuccessResponse<any>>("/users/me/settings");
+        await http.get<SuccessResponse<SettingsData>>("/users/me/settings");
 
       return response.data.data; // unwrap SuccessResponse
     } catch (err) {
@@ -79,7 +100,7 @@ class UserService {
   async updateNotifications(payload: NotificationPreferencesPayload) {
     try {
       const response =
-        await http.patch<SuccessResponse<any>>(
+        await http.patch<SuccessResponse<NotificationPreferencesPayload>>(
           "/users/me/settings/notifications",
           payload
         );
@@ -93,7 +114,7 @@ class UserService {
   async updateSecurity(payload: SecuritySettingsPayload) {
     try {
       const response =
-        await http.patch<SuccessResponse<any>>(
+        await http.patch<SuccessResponse<SecuritySettingsPayload>>(
           "/users/me/settings/security",
           payload
         );
@@ -107,7 +128,7 @@ class UserService {
   async updateAppearance(payload: AppearanceSettingsPayload) {
     try {
       const response =
-        await http.patch<SuccessResponse<any>>(
+        await http.patch<SuccessResponse<AppearanceSettingsPayload>>(
           "/users/me/settings/appearance",
           payload
         );
@@ -121,7 +142,7 @@ class UserService {
   async updateIntegrations(payload: IntegrationSettingsPayload) {
     try {
       const response =
-        await http.patch<SuccessResponse<any>>(
+        await http.patch<SuccessResponse<IntegrationSettingsPayload>>(
           "/users/me/settings/integrations",
           payload
         );
@@ -135,7 +156,7 @@ class UserService {
   async updateWorkspace(payload: WorkspaceSettingsPayload) {
     try {
       const response =
-        await http.patch<SuccessResponse<any>>(
+        await http.patch<SuccessResponse<WorkspaceSettingsPayload>>(
           "/users/me/settings/workspace",
           payload
         );

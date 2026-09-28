@@ -187,7 +187,7 @@ export default function Home() {
       {/* Features */}
       <section className="section" id="features">
         <div className="section-inner">
-          <span className="section-label">// Features</span>
+          <span className="section-label">Features</span>
           <h2 className="section-title">
             Everything your team needs
             <br />
@@ -257,7 +257,7 @@ export default function Home() {
       {/* How it works */}
       <section className="section how-it-works" id="how">
         <div className="section-inner">
-          <span className="section-label">// How It Works</span>
+          <span className="section-label">How It Works</span>
           <h2 className="section-title">Up and running in minutes</h2>
           <p className="section-sub">
             Four simple steps from account creation to your first shipped sprint.
@@ -300,7 +300,7 @@ export default function Home() {
       {/* Pricing */}
       <section className="section" id="pricing">
         <div className="section-inner" style={{ textAlign: "center" }}>
-          <span className="section-label">// Pricing</span>
+          <span className="section-label">Pricing</span>
           <h2 className="section-title">Simple, transparent pricing</h2>
           <p className="section-sub" style={{ margin: "0 auto" }}>
             Start free. Scale as you grow. No hidden fees, ever.

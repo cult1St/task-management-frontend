@@ -7,6 +7,7 @@ import authService from "@/services/auth.service";
 import { useAuth } from "@/context/auth-context";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
+import { getOnboardingPath, setPendingVerifyEmail } from "@/utils/onboarding";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -53,10 +54,27 @@ export default function LoginPage() {
 
       showToast("Login successful. Redirecting...", "success");
 
-      await refreshUser();
-      router.push("/user/dashboard");
+      const profile = await refreshUser();
+      const onboarding = profile?.onboarding;
+
+      if (onboarding && !onboarding.completed && onboarding.currentStep !== "DONE") {
+        router.replace(getOnboardingPath(onboarding.currentStep));
+      } else {
+        router.push("/user/dashboard");
+      }
     } catch (err: unknown) {
       const errData = err as ErrorResponse;
+
+      // Unverified accounts get no token — send them to complete email verification.
+      if (errData?.code === "EMAIL_NOT_VERIFIED") {
+        setPendingVerifyEmail(formData.email);
+        showToast(
+          errData.message || "Please verify your email before signing in.",
+          "info"
+        );
+        router.push("/onboarding/verify-email");
+        return;
+      }
 
       if (errData?.errors) {
         setErrors(errData.errors);

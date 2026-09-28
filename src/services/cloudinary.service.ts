@@ -1,5 +1,4 @@
 const CLOUD_NAME = process.env.VITE_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = process.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 export interface CloudinaryUploadResponse {
   url: string;

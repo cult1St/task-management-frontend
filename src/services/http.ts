@@ -4,7 +4,6 @@ import { logError } from "@/utils/telemetry";
 const baseURL = process.env.NEXT_PUBLIC_BACKEND_BASE_URL;
 if (!baseURL) {
     // Helpful warning during development if env is missing
-    // eslint-disable-next-line no-console
     console.warn("NEXT_PUBLIC_BACKEND_BASE_URL is not set. Requests will use a relative URL.");
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-// @ts-ignore
+// @ts-expect-error NProgress types are not available
 import NProgress from "nprogress";
 import "nprogress/nprogress.css";
 
@@ -33,7 +33,6 @@ export default function NavigationProgress() {
 
   useEffect(() => {
     doneProgress();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams]);
 
   useEffect(() => {
@@ -69,13 +68,11 @@ export default function NavigationProgress() {
 
     history.pushState = function (...args) {
       startProgress();
-      // eslint-disable-next-line prefer-rest-params
       return originalPushState.apply(this, args as unknown as Parameters<History["pushState"]>);
     };
 
     history.replaceState = function (...args) {
       startProgress();
-      // eslint-disable-next-line prefer-rest-params
       return originalReplaceState.apply(this, args as unknown as Parameters<History["replaceState"]>);
     };
 

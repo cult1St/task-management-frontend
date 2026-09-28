@@ -5,23 +5,23 @@ import { usePathname } from "next/navigation";
 import type { AuthUser } from "@/context/auth-context";
 
 interface SidebarProps {
-  openModal: (modal: string) => void;
   isOpen: boolean;
   isMobile: boolean;
   isCollapsed: boolean;
   user: AuthUser | null;
   onNavigate: () => void;
   onLogout: () => Promise<void>;
+  onAddTask: () => void;
 }
 
 export default function Sidebar({
-  openModal,
   isOpen,
   isMobile,
   isCollapsed,
   user,
   onNavigate,
   onLogout,
+  onAddTask,
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -64,6 +64,7 @@ export default function Sidebar({
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+  const avatarUrl = user?.avatarUrl || user?.avatar_url;
 
   return (
     <aside className={sidebarClassName}>
@@ -97,7 +98,7 @@ export default function Sidebar({
           </div>
         ))}
 
-        <button onClick={() => openModal("task")} className="sidebar-link">
+        <button type="button" onClick={onAddTask} className="sidebar-link">
           <span className="sidebar-link-icon">＋</span>
           <span className="sidebar-link-label">New Task</span>
         </button>
@@ -110,7 +111,18 @@ export default function Sidebar({
 
       <div className="sidebar-footer">
         <div className="user-info">
-          <div className="user-avatar">{displayInitials || "TF"}</div>
+          <div className="user-avatar">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt={`${displayName} avatar`}
+                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : (
+              displayInitials || "TF"
+            )}
+          </div>
           <div>
             <div className="user-name">{displayName}</div>
             <div className="user-role">{displayRole}</div>

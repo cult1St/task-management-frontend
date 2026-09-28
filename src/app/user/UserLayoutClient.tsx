@@ -6,6 +6,7 @@ import Sidebar from "./components/Sidebar";
 import Notifications from "./components/Notifications";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/context/auth-context";
+import { getOnboardingPath } from "@/utils/onboarding";
 
 const MOBILE_BREAKPOINT = 900;
 
@@ -16,7 +17,8 @@ export default function UserLayoutClient({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isLoading, isAuthenticated, logout, refreshUser } = useAuth();
+  const { user, onboarding, isLoading, isAuthenticated, logout, refreshUser } =
+    useAuth();
 
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
@@ -54,6 +56,18 @@ export default function UserLayoutClient({
 
     router.replace("/login");
   }, [isAuthenticated, isLoading, refreshUser, router]);
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+
+    if (
+      onboarding &&
+      !onboarding.completed &&
+      onboarding.currentStep !== "DONE"
+    ) {
+      router.replace(getOnboardingPath(onboarding.currentStep));
+    }
+  }, [isAuthenticated, isLoading, onboarding, router]);
 
   useEffect(() => {
     if (isMobile) {
@@ -98,6 +112,21 @@ export default function UserLayoutClient({
     return null;
   }
 
+  if (
+    onboarding &&
+    !onboarding.completed &&
+    onboarding.currentStep !== "DONE"
+  ) {
+    return (
+      <div className="user-auth-loading">
+        <div className="hero-badge">
+          <div className="hero-badge-dot" />
+          Continuing setup...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={userLayoutClassName}>
       {isMobile && isMobileSidebarOpen ? (
@@ -105,7 +134,6 @@ export default function UserLayoutClient({
       ) : null}
 
       <Sidebar
-        openModal={setActiveModal}
         isOpen={sidebarOpen}
         isMobile={isMobile}
         isCollapsed={sidebarCollapsed}
@@ -116,6 +144,7 @@ export default function UserLayoutClient({
           }
         }}
         onLogout={handleSignOut}
+        onAddTask={() => router.push('/user/tasks?create=true')}
       />
 
       <main className="main-content">
@@ -142,8 +171,9 @@ export default function UserLayoutClient({
 
           <div className="topbar-right">
             <button
+              type="button"
               className="btn btn-primary btn-sm"
-              onClick={() => setActiveModal("task")}
+              onClick={() => router.push('/user/tasks?create=true')}
             >
               + New Task
             </button>

@@ -4,13 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import authService from "@/services/auth.service";
 import { RegisterDTO, ErrorResponse, ValidationErrors } from "@/dto/auth";
-import { useAuth } from "@/context/auth-context";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
+import { setPendingVerifyEmail } from "@/utils/onboarding";
 
 const RegisterPage = () => {
   const router = useRouter();
-  const { refreshUser } = useAuth();
   const { toasts, showToast, removeToast } = useToast();
 
   const [formData, setFormData] = useState<RegisterDTO>({
@@ -47,10 +46,11 @@ const RegisterPage = () => {
     try {
       await authService.register(formData);
 
-      showToast("Registration successful. Redirecting...", "success");
+      // No auth token until email is verified — keep email for the verify screen.
+      setPendingVerifyEmail(formData.email);
 
-      await refreshUser();
-      router.push("/user/dashboard");
+      showToast("Account created. Check your email for a verification code.", "success");
+      router.push("/onboarding/verify-email");
     } catch (err: unknown) {
       const errData = err as ErrorResponse;
 

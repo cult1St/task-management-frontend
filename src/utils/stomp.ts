@@ -40,7 +40,6 @@ export function createStompClient() {
     heartbeatOutgoing: 10000,
     debug: (message) => {
       if (process.env.NODE_ENV !== "production") {
-        // eslint-disable-next-line no-console
         console.debug("[STOMP]", message);
       }
     },

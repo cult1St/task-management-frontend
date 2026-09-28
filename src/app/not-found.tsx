@@ -49,7 +49,7 @@ export default function NotFoundPage() {
               <Link className="btn btn-primary btn-lg" href="/">
                 Back to Home
               </Link>
-              <Link className="btn btn-secondary btn-lg" href="/dashboard">
+              <Link className="btn btn-secondary btn-lg" href="/user/dashboard">
                 Open Dashboard
               </Link>
             </div>

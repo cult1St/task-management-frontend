@@ -52,7 +52,7 @@ export function DatePickerField({
   return (
     <DatePicker
       selected={selected}
-      onChange={(date) => onChange(date ? toISODate(date as Date) : "")}
+      onChange={(date: Date | null) => onChange(date ? toISODate(date) : "")}
       placeholderText={placeholder || "Select date"}
       className="form-input"
       wrapperClassName="datepicker-wrapper"
@@ -73,7 +73,7 @@ export function TimePickerField({
   return (
     <DatePicker
       selected={selected}
-      onChange={(date) => onChange(formatTime(date as Date | null))}
+      onChange={(date: Date | null) => onChange(formatTime(date))}
       placeholderText={placeholder || "Select time"}
       className="form-input"
       wrapperClassName="datepicker-wrapper"

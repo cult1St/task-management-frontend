@@ -8,7 +8,6 @@ export function logEvent(eventName: string, properties?: Record<string, unknown>
   };
 
   // Local console for debugging
-  // eslint-disable-next-line no-console
   console.debug("[Telemetry] event", payload);
 
   const endpoint = process.env.NEXT_PUBLIC_TELEMETRY_ENDPOINT;
@@ -29,9 +28,8 @@ export function logError(error: unknown, context?: Record<string, unknown>) {
 
   // Ensure we can log non-serializable errors safely
   const message =
-    error instanceof Error ? error.message : (error as any)?.message || String(error);
+    error instanceof Error ? error.message : (error as { message?: string })?.message || String(error);
 
-  // eslint-disable-next-line no-console
   console.error("[Telemetry] error", { message, context, error });
 
   const endpoint = process.env.NEXT_PUBLIC_TELEMETRY_ENDPOINT;

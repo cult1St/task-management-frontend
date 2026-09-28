@@ -9,6 +9,11 @@ import {
   useState,
 } from "react";
 import authService from "@/services/auth.service";
+import type { OnboardingStatus } from "@/dto/onboarding";
+import {
+  COMPLETED_ONBOARDING,
+  extractOnboardingFromResponse,
+} from "@/utils/onboarding";
 
 export interface AuthUser {
   id?: string | number;
@@ -19,13 +24,16 @@ export interface AuthUser {
   role?: string;
   avatarUrl?: string;
   avatar_url?: string;
+  onboarding?: OnboardingStatus;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
+  onboarding: OnboardingStatus | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<AuthUser | null>;
+  setOnboarding: (status: OnboardingStatus) => void;
   logout: () => Promise<void>;
 }
 
@@ -41,6 +49,12 @@ function parseProfilePayload(payload: unknown): AuthUser | null {
     unknown
   >;
 
+  const onboarding =
+    extractOnboardingFromResponse(payload) ??
+    (user.onboarding && typeof user.onboarding === "object"
+      ? extractOnboardingFromResponse({ data: { onboarding: user.onboarding } })
+      : null);
+
   const normalized: AuthUser = {
     id: (user.id as string | number | undefined) ?? undefined,
     full_name: (user.full_name as string | undefined) ?? undefined,
@@ -50,6 +64,7 @@ function parseProfilePayload(payload: unknown): AuthUser | null {
     role: (user.role as string | undefined) ?? undefined,
     avatarUrl: (user.avatarUrl as string | undefined) ?? undefined,
     avatar_url: (user.avatar_url as string | undefined) ?? undefined,
+    onboarding: onboarding ?? undefined,
   };
 
   if (
@@ -66,6 +81,7 @@ function parseProfilePayload(payload: unknown): AuthUser | null {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [onboarding, setOnboardingState] = useState<OnboardingStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const clearAuthStorage = useCallback(() => {
@@ -74,15 +90,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem("authUser");
   }, []);
 
+  const setOnboarding = useCallback((status: OnboardingStatus) => {
+    setOnboardingState(status);
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, onboarding: status };
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("authUser", JSON.stringify(next));
+      }
+      return next;
+    });
+  }, []);
+
   const refreshUser = useCallback(async () => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return null;
     setIsLoading(true);
 
     const token = sessionStorage.getItem("authToken");
     if (!token) {
       setUser(null);
+      setOnboardingState(null);
       setIsLoading(false);
-      return;
+      return null;
     }
 
     try {
@@ -90,14 +119,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const parsedUser = parseProfilePayload(response);
       setUser(parsedUser);
 
+      const nextOnboarding =
+        parsedUser?.onboarding ??
+        extractOnboardingFromResponse(response) ??
+        (parsedUser ? COMPLETED_ONBOARDING : null);
+      setOnboardingState(nextOnboarding);
+
       if (parsedUser) {
-        sessionStorage.setItem("authUser", JSON.stringify(parsedUser));
+        const toCache = {
+          ...parsedUser,
+          onboarding: nextOnboarding ?? parsedUser.onboarding,
+        };
+        sessionStorage.setItem("authUser", JSON.stringify(toCache));
       } else {
         sessionStorage.removeItem("authUser");
       }
+
+      return parsedUser
+        ? { ...parsedUser, onboarding: nextOnboarding ?? undefined }
+        : null;
     } catch {
       clearAuthStorage();
       setUser(null);
+      setOnboardingState(null);
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -111,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       clearAuthStorage();
       setUser(null);
+      setOnboardingState(null);
     }
   }, [clearAuthStorage]);
 
@@ -120,7 +166,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cached = sessionStorage.getItem("authUser");
     if (cached) {
       try {
-        setUser(JSON.parse(cached) as AuthUser);
+        const parsed = JSON.parse(cached) as AuthUser;
+        setUser(parsed);
+        if (parsed.onboarding) {
+          setOnboardingState(parsed.onboarding);
+        }
       } catch {
         sessionStorage.removeItem("authUser");
       }
@@ -132,12 +182,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      onboarding,
       isLoading,
       isAuthenticated: Boolean(user),
       refreshUser,
+      setOnboarding,
       logout,
     }),
-    [isLoading, logout, refreshUser, user]
+    [isLoading, logout, onboarding, refreshUser, setOnboarding, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

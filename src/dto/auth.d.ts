@@ -16,4 +16,6 @@ export interface ValidationErrors{
 export interface ErrorResponse{
     message: string;
     errors?: ValidationErrors;
+    /** Machine-readable code, e.g. EMAIL_NOT_VERIFIED */
+    code?: string;
 }
