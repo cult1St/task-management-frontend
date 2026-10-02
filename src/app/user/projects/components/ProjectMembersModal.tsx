@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import IconCloseButton from "@/components/IconCloseButton";
 import projectsService from "@/services/projects.service";
 import { ProjectMemberDTO } from "@/dto/invitations";
 import { useToast } from "@/hooks/useToast";
@@ -80,9 +81,7 @@ export default function ProjectMembersModal({
       <div className="modal" style={{ minWidth: 520 }}>
         <div className="modal-header">
           <h3 className="modal-title">Project Members</h3>
-          <button className="modal-close" onClick={onClose}>
-            x
-          </button>
+          <IconCloseButton onClick={onClose} />
         </div>
         <div className="modal-body">
           <p style={{ margin: 0, color: "var(--slate-400)" }}>

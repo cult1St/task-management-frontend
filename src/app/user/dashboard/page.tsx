@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
+import { useWorkspace } from "@/context/workspace-context";
 import { useToast } from "@/hooks/useToast";
 import tasksService from "@/services/tasks.service";
 import projectsService from "@/services/projects.service";
 import notificationsService from "@/services/notifications.service";
-import { TaskDTO } from "@/dto/tasks";
+import { TaskDTO, TaskStatus } from "@/dto/tasks";
 import { ProjectDTO } from "@/dto/projects";
 import { NotificationDTO } from "@/dto/notifications";
 import { ProjectMemberDTO } from "@/dto/invitations";
@@ -17,6 +18,7 @@ import {
   formatShortDate,
 } from "@/utils/dateUtil";
 import ToastContainer from "@/components/ToastContainer";
+import { FolderKanban, CheckSquare, Zap } from "lucide-react";
 import {
   StatCard,
   ActivityFeed,
@@ -253,10 +255,13 @@ const loadProjectMembers = async (projects: ProjectDTO[], tasks: TaskDTO[]) => {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { workspace } = useWorkspace();
   const { toasts, showToast, removeToast } = useToast();
   const router = useRouter();
 
   const [rawTasks, setRawTasks] = useState<TaskDTO[]>([]);
+  const [myTasks, setMyTasks] = useState<TaskDTO[]>([]);
+  const [projectCount, setProjectCount] = useState(0);
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -270,23 +275,27 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const [taskData, projectData, notificationData] = await Promise.all([
+      const [allTasks, mineTasks, projectData, notificationData] = await Promise.all([
         tasksService.list(),
+        tasksService.list({ scope: "mine" }),
         projectsService.list(),
         notificationsService.list({ limit: 8 }),
       ]);
 
       if (!isMounted.current) return;
 
-      const safeTasks = taskData || [];
+      const safeAllTasks = allTasks || [];
+      const safeMine = mineTasks || safeAllTasks;
       const safeProjects = projectData || [];
       const safeNotifications = notificationData || [];
 
-      setRawTasks(safeTasks);
+      setRawTasks(safeAllTasks);
+      setMyTasks(safeMine);
+      setProjectCount(safeProjects.length);
       setProjects(buildProjectList(safeProjects));
       setActivityItems(buildActivityItems(safeNotifications));
 
-      const members = await loadProjectMembers(safeProjects, safeTasks);
+      const members = await loadProjectMembers(safeProjects, safeAllTasks);
       if (!isMounted.current) return;
       setTeamMembers(members);
     } catch (err) {
@@ -310,7 +319,8 @@ export default function DashboardPage() {
     };
   }, [loadDashboard]);
 
-  const displayName = user?.fullName || user?.full_name || user?.name || "Alex";
+  const displayName = user?.fullName || user?.full_name || user?.name || "there";
+  const workspaceName = workspace?.name || "Workspace";
 
   const currentUserId = (() => {
     if (!user) return undefined;
@@ -319,46 +329,49 @@ export default function DashboardPage() {
     return Number.isFinite(parsed) ? parsed : undefined;
   })();
 
-  const tasks = useMemo(() => buildTaskList(rawTasks, currentUserId), [rawTasks, currentUserId]);
+  const tasks = useMemo(
+    () => buildTaskList(myTasks.length ? myTasks : rawTasks, currentUserId),
+    [myTasks, rawTasks, currentUserId]
+  );
   const deadlines = useMemo(() => buildDeadlines(rawTasks), [rawTasks]);
 
   const stats = useMemo(() => {
-    const total = rawTasks.length;
-    const inProgress = rawTasks.filter((task) => task.status === "IN_PROGRESS").length;
-    const completed = rawTasks.filter((task) => task.status === "DONE").length;
-    const overdue = rawTasks.filter((task) => {
-      if (!task.dueDate || task.status === "DONE") return false;
-      const due = new Date(task.dueDate);
-      if (Number.isNaN(due.getTime())) return false;
-      const today = new Date();
-      return due.getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-    }).length;
-
-    const openTasks = rawTasks.filter((task) => task.status !== "DONE").length;
-    return { total, inProgress, completed, overdue, openTasks };
-  }, [rawTasks]);
+    const myOpen = (myTasks.length ? myTasks : rawTasks).filter(
+      (task) => task.status !== "DONE"
+    ).length;
+    return {
+      projects: projectCount,
+      myTasks: myOpen,
+      activeSprints: 0,
+    };
+  }, [myTasks, rawTasks, projectCount]);
 
   const handleToggleTask = async (taskId: number) => {
-    const target = rawTasks.find((task) => task.id === taskId);
+    const target =
+      myTasks.find((task) => task.id === taskId) ||
+      rawTasks.find((task) => task.id === taskId);
     if (!target) return;
 
-    const nextStatus = target.status === "DONE" ? "IN_PROGRESS" : "DONE";
+    const nextStatus: TaskStatus = target.status === "DONE" ? "IN_PROGRESS" : "DONE";
 
-    // Optimistic UI update
-    setRawTasks((prev) =>
-      prev.map((task) =>
+    const applyOptimistic = (list: TaskDTO[]): TaskDTO[] =>
+      list.map((task) =>
         task.id === taskId ? { ...task, status: nextStatus } : task
-      )
-    );
+      );
+
+    setMyTasks((prev) => applyOptimistic(prev));
+    setRawTasks((prev) => applyOptimistic(prev));
 
     try {
       const updated = await tasksService.update(taskId, { status: nextStatus }, "status");
       if (updated) {
-        setRawTasks((prev) =>
-          prev.map((task) =>
-            task.id === taskId ? { ...task, status: updated.status || nextStatus } : task
-          )
-        );
+        const resolvedStatus: TaskStatus = updated.status ?? nextStatus;
+        const applyServer = (list: TaskDTO[]): TaskDTO[] =>
+          list.map((task) =>
+            task.id === taskId ? { ...task, status: resolvedStatus } : task
+          );
+        setMyTasks((prev) => applyServer(prev));
+        setRawTasks((prev) => applyServer(prev));
       }
     } catch (err) {
       const message =
@@ -366,12 +379,12 @@ export default function DashboardPage() {
         "Unable to update task status. Please try again.";
       showToast(message, "error");
 
-      // Revert optimistic update
-      setRawTasks((prev) =>
-        prev.map((task) =>
+      const revert = (list: TaskDTO[]) =>
+        list.map((task) =>
           task.id === taskId ? { ...task, status: target.status } : task
-        )
-      );
+        );
+      setMyTasks((prev) => revert(prev));
+      setRawTasks((prev) => revert(prev));
     }
   };
 
@@ -379,7 +392,6 @@ export default function DashboardPage() {
     <div className="content-area">
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
-      {/* Header */}
       <div
         className="page-header"
         style={{
@@ -391,14 +403,25 @@ export default function DashboardPage() {
         }}
       >
         <div>
-          <h1 className="page-title">Good morning, {displayName}</h1>
+          <h1 className="page-title">{workspaceName}</h1>
           <p className="page-subtitle">
-            You have {stats.openTasks} open tasks and {deadlines.length} deadlines this week.
+            Welcome back, {displayName}. You have {stats.myTasks} open tasks in this
+            workspace.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <button className="btn btn-secondary btn-sm">?? Reports</button>
-          <button className="btn btn-primary btn-sm" onClick={() => router.push('/user/tasks?create=true')}>+ Add Task</button>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => router.push("/user/projects")}
+          >
+            View Projects
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => router.push("/user/tasks?create=true")}
+          >
+            + Add Task
+          </button>
         </div>
       </div>
 
@@ -420,50 +443,44 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {/* Stats row */}
       <div className="stats-grid">
         <StatCard
           variant="teal"
-          icon="??"
-          value={stats.total}
-          label="Total Tasks"
-          change={isLoading ? "Loading" : "Updated from backend"}
+          icon={FolderKanban}
+          value={isLoading ? "—" : stats.projects}
+          label="Projects"
+          change={isLoading ? "Loading" : "In this workspace"}
           changeDir="up"
         />
         <StatCard
           variant="amber"
-          icon="??"
-          value={stats.inProgress}
-          label="In Progress"
-          change={isLoading ? "Loading" : "Live status"}
+          icon={CheckSquare}
+          value={isLoading ? "—" : stats.myTasks}
+          label="My Tasks"
+          change={isLoading ? "Loading" : "Open items"}
           changeDir="up"
         />
         <StatCard
           variant="violet"
-          icon="?"
-          value={stats.completed}
-          label="Completed"
-          change={isLoading ? "Loading" : "This period"}
+          icon={Zap}
+          value={isLoading ? "—" : stats.activeSprints}
+          label="Active Sprints"
+          change="Coming soon"
           changeDir="up"
-        />
-        <StatCard
-          variant="rose"
-          icon="?"
-          value={stats.overdue}
-          label="Overdue"
-          change={isLoading ? "Loading" : "Needs attention"}
-          changeDir="down"
         />
       </div>
 
-      {/* Two-column grid */}
       <div className="dashboard-grid">
-        {/* Left */}
         <div>
           <div className="card" style={{ marginBottom: "1.25rem" }}>
             <div className="card-header">
-              <span className="card-title">?? My Tasks</span>
-              <button className="btn btn-secondary btn-sm">View All ?</button>
+              <span className="card-title">My Work</span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => router.push("/user/tasks")}
+              >
+                View All
+              </button>
             </div>
             <div style={{ padding: "0.25rem 1.5rem" }}>
               {tasks.length ? (
@@ -477,7 +494,7 @@ export default function DashboardPage() {
                 ))
               ) : (
                 <div style={{ padding: "0.75rem 0", color: "var(--slate-400)" }}>
-                  No tasks to display.
+                  {isLoading ? "Loading your work..." : "No open tasks assigned to you."}
                 </div>
               )}
             </div>
@@ -485,7 +502,6 @@ export default function DashboardPage() {
           <ActivityFeed items={activityItems} />
         </div>
 
-        {/* Right */}
         <div>
           <ProjectProgress projects={projects} />
           <DeadlinesCard deadlines={deadlines} />

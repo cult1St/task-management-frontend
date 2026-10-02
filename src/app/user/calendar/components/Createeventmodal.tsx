@@ -1,5 +1,6 @@
 "use client";
 
+import IconCloseButton from "@/components/IconCloseButton";
 import { CalendarEventColor, CreateCalendarEventPayload } from "@/dto/calendar";
 import { DatePickerField, TimePickerField } from "@/components/DatePickerField";
 
@@ -32,9 +33,7 @@ export default function CreateEventModal({
       <div className="modal">
         <div className="modal-header">
           <h3 className="modal-title">Create New Event</h3>
-          <button className="modal-close" onClick={onClose}>
-            ×
-          </button>
+          <IconCloseButton onClick={onClose} />
         </div>
 
         <div className="modal-body">

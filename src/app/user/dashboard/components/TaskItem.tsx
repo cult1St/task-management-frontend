@@ -1,4 +1,5 @@
-﻿import { Task, Priority } from "@/dto/dashboard";
+﻿import { Check, CalendarDays } from "lucide-react";
+import { Task, Priority } from "@/dto/dashboard";
 
 export function TaskItem({
   task,
@@ -27,7 +28,7 @@ export function TaskItem({
         }}
         title={canToggle ? undefined : "Only the assignee can update status"}
       >
-        {task.done && "✓"}
+        {task.done ? <Check size={14} strokeWidth={2.5} aria-hidden /> : null}
       </div>
       <div className="task-info">
         <div className={`task-name ${task.done ? "done" : ""}`}>{task.name}</div>
@@ -36,7 +37,8 @@ export function TaskItem({
             {task.priority}
           </span>
           <span className="task-due">
-            📅 {task.due}
+            <CalendarDays size={12} strokeWidth={1.75} aria-hidden className="inline-icon" />
+            {task.due}
             {task.overdue && (
               <span style={{ color: "var(--rose-400)" }}> (overdue)</span>
             )}

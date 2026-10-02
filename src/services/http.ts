@@ -13,11 +13,16 @@ const http = axios.create({
 });
 
 
-//request interceptor( handle auth token )
+//request interceptor( handle auth token + active workspace )
 http.interceptors.request.use((config) => {
     if(typeof window != "undefined"){
         const token = sessionStorage.getItem("authToken");
         if (token) config.headers.Authorization = `Bearer ${token}`;
+
+        const workspaceId = sessionStorage.getItem("selectedWorkspaceId");
+        if (workspaceId) {
+            config.headers["X-Workspace-Id"] = workspaceId;
+        }
     }
     return config;
 });

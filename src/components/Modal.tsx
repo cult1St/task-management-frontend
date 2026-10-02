@@ -1,12 +1,13 @@
 "use client";
 
 import { ReactElement } from "react";
+import IconCloseButton from "@/components/IconCloseButton";
 
 type Props = {
-    isOpen: boolean,
-    onClose: () => void,
-    children: ReactElement
-}
+  isOpen: boolean;
+  onClose: () => void;
+  children: ReactElement;
+};
 
 export default function Modal({ isOpen, onClose, children }: Props) {
   if (!isOpen) return null;
@@ -14,9 +15,7 @@ export default function Modal({ isOpen, onClose, children }: Props) {
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        <button className="modal-close" onClick={onClose}>
-          ✕
-        </button>
+        <IconCloseButton onClick={onClose} />
         {children}
       </div>
     </div>

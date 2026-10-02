@@ -1,5 +1,6 @@
 "use client";
 
+import IconCloseButton from "@/components/IconCloseButton";
 import { CreateTaskPayload, ProjectAssigneeDTO, TaskPriority } from "@/dto/tasks";
 import { ProjectDTO } from "@/dto/projects";
 import { DatePickerField } from "@/components/DatePickerField";
@@ -36,9 +37,7 @@ export default function TaskCreateModal({
       <div className="modal">
         <div className="modal-header">
           <h3 className="modal-title">Create New Task</h3>
-          <button className="modal-close" onClick={onClose}>
-            x
-          </button>
+          <IconCloseButton onClick={onClose} />
         </div>
         <div className="modal-body">
           <div className="form-group">

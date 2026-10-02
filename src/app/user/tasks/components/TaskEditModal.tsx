@@ -1,3 +1,4 @@
+import IconCloseButton from "@/components/IconCloseButton";
 import { ProjectAssigneeDTO, TaskDTO, TaskStatus } from "@/dto/tasks";
 
 type TaskEditForm = {
@@ -49,9 +50,7 @@ export default function TaskEditModal({
       <div className="modal">
         <div className="modal-header">
           <h3 className="modal-title">Update Task</h3>
-          <button className="modal-close" onClick={onClose}>
-            x
-          </button>
+          <IconCloseButton onClick={onClose} />
         </div>
         <div className="modal-body">
           <div style={{ marginBottom: "1rem", color: "var(--slate-400)", fontSize: "0.85rem" }}>

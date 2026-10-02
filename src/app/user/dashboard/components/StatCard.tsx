@@ -1,15 +1,16 @@
 
+import type { LucideIcon } from "lucide-react";
 
 export function StatCard({
   variant,
-  icon,
+  icon: Icon,
   value,
   label,
   change,
   changeDir,
 }: {
   variant: string;
-  icon: string;
+  icon: LucideIcon;
   value: string | number;
   label: string;
   change: string;
@@ -18,7 +19,12 @@ export function StatCard({
   return (
     <div className={`stat-card ${variant}`}>
       <div className={`stat-icon-wrap bg-${variant}`}>
-        <span style={{ color: `var(--${variant}-400)` }}>{icon}</span>
+        <Icon
+          size={20}
+          strokeWidth={1.75}
+          style={{ color: `var(--${variant}-400)` }}
+          aria-hidden
+        />
       </div>
       <div className="stat-value">{value}</div>
       <div className="stat-label">{label}</div>

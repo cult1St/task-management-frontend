@@ -25,10 +25,15 @@ export interface InviteProjectMemberPayload {
   role?: string;
 }
 
+/** Workspace or (legacy) project invitation */
 export interface ProjectInvitationDTO {
   id: number;
-  projectId: number;
-  projectName: string;
+  /** Present for legacy project invites */
+  projectId?: number;
+  projectName?: string;
+  /** Present for workspace invites */
+  workspaceId?: number;
+  workspaceName?: string;
   inviterId?: number;
   inviterName?: string;
   invitedUserId?: number;
@@ -43,6 +48,7 @@ export interface ProjectInvitationDTO {
 export interface InvitationFilters {
   status?: InvitationStatus;
   projectId?: number;
+  workspaceId?: number;
 }
 
 export interface RespondToInvitationPayload {

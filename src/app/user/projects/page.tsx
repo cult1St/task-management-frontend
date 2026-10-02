@@ -2,12 +2,22 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { Search } from "lucide-react";
+import IconCloseButton from "@/components/IconCloseButton";
 import projectsService from "@/services/projects.service";
-import { CreateProjectPayload, ProjectDTO, ProjectStatus } from "@/dto/projects";
-import { ProjectInviteUserOptionDTO } from "@/dto/invitations";
+import workspaceService from "@/services/workspace.service";
+import {
+  CreateProjectPayload,
+  ProjectDTO,
+  ProjectStatus,
+  ProjectType,
+} from "@/dto/projects";
+import type { WorkspaceMemberDTO } from "@/dto/workspace";
 import { formatShortDate } from "@/utils/dateUtil";
+import { suggestProjectKey } from "@/utils/projectKey";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
+import { useWorkspace } from "@/context/workspace-context";
 import ProjectMembersModal from "./components/ProjectMembersModal";
 import { DatePickerField } from "@/components/DatePickerField";
 
@@ -29,12 +39,29 @@ const STATUS_CLASS: Record<ProjectStatus, string> = {
   ARCHIVED: "status-paused",
 };
 
-function resolveUserName(user: ProjectInviteUserOptionDTO) {
-  return user.fullName || user.full_name || user.name || user.email;
+const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
+  SOFTWARE: "Software",
+  BUSINESS: "Business",
+  MARKETING: "Marketing",
+  CUSTOM: "Custom",
+};
+
+const EMPTY_DRAFT: CreateProjectPayload = {
+  name: "",
+  key: "",
+  description: "",
+  projectType: "SOFTWARE",
+  status: "ACTIVE",
+  dueDate: "",
+};
+
+function resolveMemberName(member: WorkspaceMemberDTO) {
+  return member.fullName || member.email || `User ${member.userId}`;
 }
 
 export default function ProjectsPage() {
   const { toasts, showToast, removeToast } = useToast();
+  const { canCreateProject, workspace } = useWorkspace();
   const searchParams = useSearchParams();
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "COMPLETED" | "ARCHIVED">(
@@ -44,12 +71,8 @@ export default function ProjectsPage() {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSavingProject, setIsSavingProject] = useState(false);
-  const [draftProject, setDraftProject] = useState<CreateProjectPayload>({
-    name: "",
-    description: "",
-    status: "ACTIVE",
-    dueDate: "",
-  });
+  const [keyTouched, setKeyTouched] = useState(false);
+  const [draftProject, setDraftProject] = useState<CreateProjectPayload>(EMPTY_DRAFT);
 
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
@@ -58,9 +81,8 @@ export default function ProjectsPage() {
   const [membersProjectId, setMembersProjectId] = useState<number | null>(null);
   const [membersProjectName, setMembersProjectName] = useState<string>("");
   const [inviteRole, setInviteRole] = useState("Contributor");
-  const [userQuery, setUserQuery] = useState("");
-  const [userOptions, setUserOptions] = useState<ProjectInviteUserOptionDTO[]>([]);
-  const [isUserSearchLoading, setIsUserSearchLoading] = useState(false);
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDTO[]>([]);
+  const [isMembersLoading, setIsMembersLoading] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -91,32 +113,22 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (!isInviteModalOpen) return;
 
-    const query = userQuery.trim();
-    if (query.length < 2) {
-      setUserOptions([]);
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      void (async () => {
-        setIsUserSearchLoading(true);
-        try {
-          const users = await projectsService.searchUsers(query);
-          setUserOptions(users || []);
-        } catch (err) {
-          const message =
-            (err as { message?: string })?.message ||
-            "Could not search users right now.";
-          showToast(message, "error");
-          setUserOptions([]);
-        } finally {
-          setIsUserSearchLoading(false);
-        }
-      })();
-    }, 300);
-
-    return () => clearTimeout(timeout);
-  }, [isInviteModalOpen, userQuery, showToast]);
+    void (async () => {
+      setIsMembersLoading(true);
+      try {
+        const list = await workspaceService.listMembers();
+        setWorkspaceMembers(list || []);
+      } catch (err) {
+        const message =
+          (err as { message?: string })?.message ||
+          "Could not load workspace members.";
+        showToast(message, "error");
+        setWorkspaceMembers([]);
+      } finally {
+        setIsMembersLoading(false);
+      }
+    })();
+  }, [isInviteModalOpen, showToast]);
 
   const filteredProjects = useMemo(() => {
     if (!search.trim()) return projects;
@@ -129,8 +141,6 @@ export default function ProjectsPage() {
     setSelectedProjectId(projectId || "");
     setSelectedUserId("");
     setInviteRole("Contributor");
-    setUserQuery("");
-    setUserOptions([]);
     setIsInviteModalOpen(true);
   };
 
@@ -139,21 +149,54 @@ export default function ProjectsPage() {
     setMembersProjectName(projectName);
   };
 
+  const openCreateModal = () => {
+    if (!canCreateProject) {
+      showToast("Your role cannot create projects in this workspace.", "error");
+      return;
+    }
+    setDraftProject(EMPTY_DRAFT);
+    setKeyTouched(false);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleNameChange = (name: string) => {
+    setDraftProject((prev) => ({
+      ...prev,
+      name,
+      key: keyTouched ? prev.key : suggestProjectKey(name),
+    }));
+  };
+
   const handleCreateProject = async () => {
     if (!draftProject.name.trim()) {
       showToast("Project name is required.", "error");
       return;
     }
 
+    const key = draftProject.key.trim().toUpperCase();
+    if (!/^[A-Z][A-Z0-9]{1,9}$/.test(key)) {
+      showToast(
+        "Project key must be 2–10 letters/numbers, starting with a letter.",
+        "error"
+      );
+      return;
+    }
+
     setIsSavingProject(true);
     try {
-      const created = await projectsService.create(draftProject);
+      const created = await projectsService.create({
+        ...draftProject,
+        name: draftProject.name.trim(),
+        key,
+        description: draftProject.description?.trim() || undefined,
+      });
       if (created) {
         setProjects((prev) => [created, ...prev]);
         showToast("Project created!", "success");
       }
       setIsCreateModalOpen(false);
-      setDraftProject({ name: "", description: "", status: "ACTIVE", dueDate: "" });
+      setDraftProject(EMPTY_DRAFT);
+      setKeyTouched(false);
     } catch (err) {
       const message =
         (err as { message?: string })?.message || "Could not create project.";
@@ -170,7 +213,7 @@ export default function ProjectsPage() {
     }
 
     if (!selectedUserId) {
-      showToast("Select a user to invite.", "error");
+      showToast("Select a workspace member.", "error");
       return;
     }
 
@@ -180,11 +223,11 @@ export default function ProjectsPage() {
         invitedUserId: selectedUserId,
         role: inviteRole || undefined,
       });
-      showToast("Invitation sent successfully.", "success");
+      showToast("Member assigned to project.", "success");
       setIsInviteModalOpen(false);
     } catch (err) {
       const message =
-        (err as { message?: string })?.message || "Could not send invitation.";
+        (err as { message?: string })?.message || "Could not assign member.";
       showToast(message, "error");
     } finally {
       setIsSendingInvite(false);
@@ -197,7 +240,11 @@ export default function ProjectsPage() {
 
       <div className="page-header">
         <h1 className="page-title">Projects</h1>
-        <p className="page-subtitle">Create projects, invite collaborators, and track progress</p>
+        <p className="page-subtitle">
+          {workspace?.name
+            ? `Projects in ${workspace.name}`
+            : "Create projects and assign workspace members"}
+        </p>
       </div>
 
       <div className="tasks-toolbar">
@@ -219,7 +266,7 @@ export default function ProjectsPage() {
         </div>
 
         <div className="topbar-search" style={{ maxWidth: 220 }}>
-          <span className="topbar-search-icon">S</span>
+          <Search className="topbar-search-icon" size={16} strokeWidth={1.75} aria-hidden />
           <input
             type="text"
             placeholder="Search projects..."
@@ -234,10 +281,19 @@ export default function ProjectsPage() {
           onClick={() => openInviteModal()}
           disabled={!projects.length}
         >
-          Invite User
+          Assign member
         </button>
 
-        <button className="btn btn-primary btn-sm" onClick={() => setIsCreateModalOpen(true)}>
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={openCreateModal}
+          disabled={!canCreateProject}
+          title={
+            canCreateProject
+              ? "Create a project in this workspace"
+              : "Guests cannot create projects"
+          }
+        >
           + New Project
         </button>
       </div>
@@ -246,45 +302,50 @@ export default function ProjectsPage() {
         {filteredProjects.map((project) => (
           <div key={project.id} className="project-card c1">
             <div className="project-header">
-              <div className="project-icon bg-teal">PRJ</div>
+              <div className="project-icon bg-teal">{project.key || "PRJ"}</div>
               <span className={`project-status ${STATUS_CLASS[project.status]}`}>
-                * {STATUS_LABELS[project.status]}
+                {STATUS_LABELS[project.status]}
               </span>
             </div>
-            <div className="project-name">{project.name}</div>
-            <div className="project-desc">{project.description || "No description yet."}</div>
-            <div className="project-progress-row">
-              <span>Progress</span>
-              <span>{project.progress}%</span>
-            </div>
-            <div className="progress-bar">
-              <div className="progress-fill fill-teal" style={{ width: `${project.progress}%` }} />
-            </div>
-            <div className="project-footer" style={{ alignItems: "center" }}>
-              <div className="project-team">
-                {(project.teamInitials || ["TF"]).map((member, idx) => (
-                  <div key={`${project.id}-${member}-${idx}`} className="project-team-avatar">
-                    {member}
-                  </div>
-                ))}
+            <h3 className="project-name">{project.name}</h3>
+            <p className="project-desc">{project.description || "No description"}</p>
+            {project.projectType ? (
+              <p
+                className="project-meta"
+                style={{ fontSize: "0.75rem", color: "var(--slate-400)" }}
+              >
+                {PROJECT_TYPE_LABELS[project.projectType]}
+              </p>
+            ) : null}
+            <div className="project-progress">
+              <div className="progress-bar">
+                <div
+                  className="progress-fill fill-teal"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, project.progress || 0))}%`,
+                  }}
+                />
               </div>
-              <span className="project-due">
-                Due: {project.dueDate ? formatShortDate(project.dueDate) : "No due date"}
-              </span>
+              <span className="progress-label">{project.progress || 0}%</span>
             </div>
-            <div style={{ marginTop: "0.9rem", display: "flex", gap: "0.5rem" }}>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => openInviteModal(project.id)}
-              >
-                Invite to Project
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => openMembersModal(project.id, project.name)}
-              >
-                Manage Members
-              </button>
+            <div className="project-footer">
+              <span className="project-due">
+                {project.dueDate ? formatShortDate(project.dueDate) : "No due date"}
+              </span>
+              <div className="project-actions" style={{ display: "flex", gap: "0.4rem" }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openInviteModal(project.id)}
+                >
+                  Assign to Project
+                </button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openMembersModal(project.id, project.name)}
+                >
+                  Manage Members
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -294,23 +355,39 @@ export default function ProjectsPage() {
         <div className="modal-backdrop open">
           <div className="modal">
             <div className="modal-header">
-              <h3 className="modal-title">Create New Project</h3>
-              <button className="modal-close" onClick={() => setIsCreateModalOpen(false)}>
-                x
-              </button>
+              <h3 className="modal-title">Create project</h3>
+              <IconCloseButton onClick={() => setIsCreateModalOpen(false)} />
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label className="form-label">Project Name *</label>
+                <label className="form-label">Project name *</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Mobile App v1.0"
+                  placeholder="e.g. TaskFlow V2"
                   value={draftProject.name}
-                  onChange={(event) =>
-                    setDraftProject((prev) => ({ ...prev, name: event.target.value }))
-                  }
+                  onChange={(event) => handleNameChange(event.target.value)}
                 />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Key *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="TF"
+                  value={draftProject.key}
+                  maxLength={10}
+                  onChange={(event) => {
+                    setKeyTouched(true);
+                    setDraftProject((prev) => ({
+                      ...prev,
+                      key: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+                    }));
+                  }}
+                />
+                <small style={{ color: "var(--slate-400)" }}>
+                  Short unique prefix for issues (e.g. TF-124)
+                </small>
               </div>
               <div className="form-group">
                 <label className="form-label">Description</label>
@@ -326,6 +403,33 @@ export default function ProjectsPage() {
                     }))
                   }
                 />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Project type</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  {(Object.keys(PROJECT_TYPE_LABELS) as ProjectType[]).map((type) => (
+                    <label
+                      key={type}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        fontSize: "0.9rem",
+                        color: "var(--slate-300)",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="projectType"
+                        checked={draftProject.projectType === type}
+                        onChange={() =>
+                          setDraftProject((prev) => ({ ...prev, projectType: type }))
+                        }
+                      />
+                      {PROJECT_TYPE_LABELS[type]}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
@@ -378,12 +482,13 @@ export default function ProjectsPage() {
         <div className="modal-backdrop open">
           <div className="modal">
             <div className="modal-header">
-              <h3 className="modal-title">Invite User to Project</h3>
-              <button className="modal-close" onClick={() => setIsInviteModalOpen(false)}>
-                x
-              </button>
+              <h3 className="modal-title">Assign workspace member</h3>
+              <IconCloseButton onClick={() => setIsInviteModalOpen(false)} />
             </div>
             <div className="modal-body">
+              <p style={{ margin: 0, color: "var(--slate-400)", fontSize: "0.875rem" }}>
+                Invite people to the workspace from Team first, then assign them here.
+              </p>
               <div className="form-group">
                 <label className="form-label">Project *</label>
                 <select
@@ -405,36 +510,26 @@ export default function ProjectsPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Search existing users *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={userQuery}
-                  onChange={(event) => setUserQuery(event.target.value)}
-                  placeholder="Type at least 2 characters"
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Select user *</label>
+                <label className="form-label">Workspace member *</label>
                 <select
                   className="form-input select-input"
                   value={selectedUserId}
                   onChange={(event) =>
                     setSelectedUserId(event.target.value ? Number(event.target.value) : "")
                   }
-                  disabled={isUserSearchLoading || userQuery.trim().length < 2}
+                  disabled={isMembersLoading}
                 >
                   <option value="">
-                    {userQuery.trim().length < 2
-                      ? "Search users first"
-                      : isUserSearchLoading
-                      ? "Searching users..."
-                      : "Select user"}
+                    {isMembersLoading
+                      ? "Loading members..."
+                      : workspaceMembers.length
+                        ? "Select member"
+                        : "No workspace members — invite from Team"}
                   </option>
-                  {userOptions.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {resolveUserName(user)} ({user.email})
+                  {workspaceMembers.map((member) => (
+                    <option key={member.userId} value={member.userId}>
+                      {resolveMemberName(member)}
+                      {member.email ? ` (${member.email})` : ""}
                     </option>
                   ))}
                 </select>
@@ -456,7 +551,7 @@ export default function ProjectsPage() {
                 Cancel
               </button>
               <button className="btn btn-primary" onClick={handleInvite} disabled={isSendingInvite}>
-                {isSendingInvite ? "Sending..." : "Send Invite"}
+                {isSendingInvite ? "Assigning..." : "Assign to project"}
               </button>
             </div>
           </div>

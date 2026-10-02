@@ -5,7 +5,7 @@ export default function NotFoundPage() {
     <div id="page-not-found" className="page active">
       <nav className="navbar">
         <Link href="/" className="navbar-brand">
-          <div className="brand-icon">⚡</div>
+          <div className="brand-icon">TF</div>
           <span className="brand-name">
             Task<span>Flow</span>
           </span>

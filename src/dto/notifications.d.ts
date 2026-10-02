@@ -4,6 +4,7 @@ export type NotificationType =
   | "PROJECT_INVITE_REJECTED"
   | "TASK_ASSIGNED"
   | "TASK_UPDATED"
+  | "CHAT_MESSAGE"
   | "GENERAL";
 
 export interface NotificationDTO {
@@ -15,4 +16,8 @@ export interface NotificationDTO {
   userId?: number;
   createdAt: string;
   actorName?: string;
+  /** Optional deep-link hints for chat */
+  channelId?: number;
+  dmThreadId?: number;
+  workspaceId?: number;
 }

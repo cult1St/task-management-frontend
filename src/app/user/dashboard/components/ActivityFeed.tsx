@@ -1,10 +1,14 @@
+import { Activity } from "lucide-react";
 import { ActivityItem } from "@/dto/dashboard";
 
 export function ActivityFeed({ items }: { items: ActivityItem[] }) {
   return (
     <div className="card">
       <div className="card-header">
-        <span className="card-title">⚡ Recent Activity</span>
+        <span className="card-title">
+          <Activity size={16} strokeWidth={1.75} aria-hidden className="inline-icon" />
+          Recent Activity
+        </span>
         <span style={{ fontSize: "0.78rem", color: "var(--slate-400)" }}>Today</span>
       </div>
       <div style={{ padding: "0.5rem 1.5rem" }}>

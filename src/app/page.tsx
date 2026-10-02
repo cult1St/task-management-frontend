@@ -1,7 +1,20 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useState } from "react";
+import {
+  Zap,
+  Play,
+  ClipboardList,
+  Users,
+  CalendarDays,
+  BarChart3,
+  Link2,
+  Check,
+  X,
+  Construction,
+  CircleCheck,
+} from "lucide-react";
 
 export default function Home() {
   const [isGuestMenuOpen, setIsGuestMenuOpen] = useState(false);
@@ -85,12 +98,14 @@ export default function Home() {
                 className="btn btn-primary btn-lg"
                 href='/register'
               >
-                ⚡ Start Free — No credit card
+                <Zap size={18} strokeWidth={1.75} aria-hidden className="btn-inline-icon" />
+                Start Free ? No credit card
               </Link>
               <button
                 className="btn btn-secondary btn-lg"
               >
-                ▶ Live Demo
+                <Play size={18} strokeWidth={1.75} aria-hidden className="btn-inline-icon" />
+                Live Demo
               </button>
             </div>
             <div className="hero-stats">
@@ -119,7 +134,10 @@ export default function Home() {
               </div>
               <div className="dp-board">
                 <div>
-                  <div className="dp-col-title">📋 To Do</div>
+                  <div className="dp-col-title">
+                    <ClipboardList size={14} strokeWidth={1.75} aria-hidden className="inline-icon" />
+                    To Do
+                  </div>
                   <div className="dp-task">
                     <div className="dp-task-title">Redesign auth flow</div>
                     <div className="dp-task-meta">
@@ -136,7 +154,10 @@ export default function Home() {
                   </div>
                 </div>
                 <div>
-                  <div className="dp-col-title">🚧 In Progress</div>
+                  <div className="dp-col-title">
+                    <Construction size={14} strokeWidth={1.75} aria-hidden className="inline-icon" />
+                    In Progress
+                  </div>
                   <div className="dp-task">
                     <div className="dp-task-title">Mobile notifications</div>
                     <div className="dp-task-meta">
@@ -153,7 +174,10 @@ export default function Home() {
                   </div>
                 </div>
                 <div>
-                  <div className="dp-col-title">✅ Done</div>
+                  <div className="dp-col-title">
+                    <CircleCheck size={14} strokeWidth={1.75} aria-hidden className="inline-icon" />
+                    Done
+                  </div>
                   <div className="dp-task">
                     <div className="dp-task-title">User auth backend</div>
                     <div className="dp-task-meta">
@@ -173,7 +197,7 @@ export default function Home() {
             </div>
             <div className="hero-float hero-float-1">
               <div className="float-label">Tasks completed today</div>
-              <div className="float-value">+12 ✦</div>
+              <div className="float-value">+12 ?</div>
             </div>
             <div className="hero-float hero-float-2">
               <div className="float-label">Team velocity</div>
@@ -194,12 +218,14 @@ export default function Home() {
             to move fast
           </h2>
           <p className="section-sub">
-            Built for modern software teams — designed to eliminate chaos and focus
+            Built for modern software teams ? designed to eliminate chaos and focus
             on what matters.
           </p>
           <div className="features-grid">
             <div className="feature-card">
-              <div className="feature-icon bg-teal">📋</div>
+              <div className="feature-icon bg-teal">
+                <ClipboardList size={22} strokeWidth={1.75} aria-hidden />
+              </div>
               <h3 className="feature-title">Kanban Boards</h3>
               <p className="feature-desc">
                 Visual drag-and-drop boards to track task progress across sprints.
@@ -207,7 +233,9 @@ export default function Home() {
               </p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon bg-violet">👥</div>
+              <div className="feature-icon bg-violet">
+                <Users size={22} strokeWidth={1.75} aria-hidden />
+              </div>
               <h3 className="feature-title">Team Collaboration</h3>
               <p className="feature-desc">
                 Assign tasks, mention teammates, share files, and stay in sync with
@@ -215,7 +243,9 @@ export default function Home() {
               </p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon bg-amber">📅</div>
+              <div className="feature-icon bg-amber">
+                <CalendarDays size={22} strokeWidth={1.75} aria-hidden />
+              </div>
               <h3 className="feature-title">Calendar View</h3>
               <p className="feature-desc">
                 See all your tasks and deadlines in a calendar. Never miss a due
@@ -223,7 +253,9 @@ export default function Home() {
               </p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon bg-rose">⚡</div>
+              <div className="feature-icon bg-rose">
+                <Zap size={22} strokeWidth={1.75} aria-hidden />
+              </div>
               <h3 className="feature-title">Sprint Planning</h3>
               <p className="feature-desc">
                 Plan and manage agile sprints. Set story points, track velocity, and
@@ -231,7 +263,9 @@ export default function Home() {
               </p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon bg-green">📊</div>
+              <div className="feature-icon bg-green">
+                <BarChart3 size={22} strokeWidth={1.75} aria-hidden />
+              </div>
               <h3 className="feature-title">Analytics &amp; Reports</h3>
               <p className="feature-desc">
                 Burn-down charts, completion rates, and team performance reports to
@@ -243,7 +277,7 @@ export default function Home() {
                 className="feature-icon"
                 style={{ background: "rgba(56,189,248,0.1)" }}
               >
-                🔗
+                <Link2 size={22} strokeWidth={1.75} aria-hidden />
               </div>
               <h3 className="feature-title">API-First Design</h3>
               <p className="feature-desc">
@@ -317,23 +351,23 @@ export default function Home() {
               </div>
               <ul className="plan-features">
                 <li>
-                  <span className="plan-check">✓</span> Up to 3 projects
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Up to 3 projects
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> 5 team members
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> 5 team members
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> Basic kanban board
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Basic kanban board
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> 1 GB storage
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> 1 GB storage
                 </li>
                 <li>
-                  <span className="plan-check no">✕</span>{" "}
+                  <span className="plan-check no"><X size={16} strokeWidth={2} aria-hidden /></span>{" "}
                   <span style={{ opacity: "0.5" }}>Sprint planning</span>
                 </li>
                 <li>
-                  <span className="plan-check no">✕</span>{" "}
+                  <span className="plan-check no"><X size={16} strokeWidth={2} aria-hidden /></span>{" "}
                   <span style={{ opacity: "0.5" }}>Analytics</span>
                 </li>
               </ul>
@@ -346,7 +380,10 @@ export default function Home() {
             </div>
             {/* Pro (featured) */}
             <div className="pricing-card featured">
-              <div className="pricing-badge">⚡ MOST POPULAR</div>
+              <div className="pricing-badge">
+                <Zap size={14} strokeWidth={2} aria-hidden className="inline-icon" />
+                MOST POPULAR
+              </div>
               <div className="plan-name" style={{ color: "var(--teal-400)" }}>
                 Pro
               </div>
@@ -358,22 +395,22 @@ export default function Home() {
               </div>
               <ul className="plan-features">
                 <li>
-                  <span className="plan-check">✓</span> Unlimited projects
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Unlimited projects
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> Up to 25 members
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Up to 25 members
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> Full kanban + sprint board
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Full kanban + sprint board
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> 50 GB storage
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> 50 GB storage
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> Analytics &amp; reports
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Analytics &amp; reports
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> API access
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> API access
                 </li>
               </ul>
               <button
@@ -396,22 +433,22 @@ export default function Home() {
               </div>
               <ul className="plan-features">
                 <li>
-                  <span className="plan-check">✓</span> Unlimited everything
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Unlimited everything
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> SSO &amp; SAML
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> SSO &amp; SAML
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> Audit logs
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Audit logs
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> Dedicated support
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Dedicated support
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> SLA guarantee
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> SLA guarantee
                 </li>
                 <li>
-                  <span className="plan-check">✓</span> Custom integrations
+                  <span className="plan-check"><Check size={16} strokeWidth={2} aria-hidden /></span> Custom integrations
                 </li>
               </ul>
               <button className="btn btn-outline" style={{ width: "100%" }}>
@@ -442,15 +479,13 @@ export default function Home() {
                 flexWrap: "wrap"
               }}
             >
-              <button
-                className="btn btn-primary btn-lg"
-              >
-                ⚡ Create Free Account
-              </button>
-              <button
-                className="btn btn-secondary btn-lg"
-              >
-                Watch Demo →
+              <Link className="btn btn-primary btn-lg" href="/register">
+                <Zap size={18} strokeWidth={1.75} aria-hidden className="btn-inline-icon" />
+                Create Free Account
+              </Link>
+              <button className="btn btn-secondary btn-lg">
+                <Play size={18} strokeWidth={1.75} aria-hidden className="btn-inline-icon" />
+                Watch Demo
               </button>
             </div>
           </div>
@@ -470,7 +505,7 @@ export default function Home() {
                   marginBottom: "0.75rem"
                 }}
               >
-                <div className="brand-icon">⚡</div>
+                <div className="brand-icon">TF</div>
                 <span className="brand-name">
                   Task<span>Flow</span>
                 </span>
@@ -534,10 +569,10 @@ export default function Home() {
           </div>
           <div className="footer-bottom">
             <div className="footer-copy">
-              © 2026 TaskFlow Inc. All rights reserved.
+              ? 2026 TaskFlow Inc. All rights reserved.
             </div>
             <div className="footer-copy">
-              Built with ❤️ on Spring Boot &amp; React
+              Built with care on Spring Boot &amp; React
             </div>
           </div>
         </div>

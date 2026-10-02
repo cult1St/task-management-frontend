@@ -7,6 +7,7 @@ import { RegisterDTO, ErrorResponse, ValidationErrors } from "@/dto/auth";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { setPendingVerifyEmail } from "@/utils/onboarding";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 const RegisterPage = () => {
   const router = useRouter();
@@ -119,8 +120,13 @@ const RegisterPage = () => {
                 type="button"
                 className="form-input-toggle"
                 onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                👁
+                {showPassword ? (
+                  <EyeOff size={18} strokeWidth={1.75} aria-hidden />
+                ) : (
+                  <Eye size={18} strokeWidth={1.75} aria-hidden />
+                )}
               </button>
             </div>
             {errors.password && <small className="form-error">{errors.password}</small>}
@@ -137,7 +143,12 @@ const RegisterPage = () => {
               opacity: isLoading ? 0.7 : 1,
             }}
           >
-            {isLoading ? "Creating Account..." : "Create Free Account ->"}
+            {isLoading ? "Creating Account..." : (
+              <>
+                Create Free Account
+                <ArrowRight size={16} strokeWidth={2} aria-hidden className="btn-inline-icon" style={{ marginLeft: "0.4rem", marginRight: 0 }} />
+              </>
+            )}
           </button>
         </form>
 

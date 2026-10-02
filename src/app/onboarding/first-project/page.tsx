@@ -7,10 +7,19 @@ import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/useToast";
 import { ErrorResponse } from "@/dto/auth";
 import { OnboardingFirstProjectPayload } from "@/dto/onboarding";
+import { ProjectType } from "@/dto/projects";
 import { DatePickerField } from "@/components/DatePickerField";
+import { suggestProjectKey } from "@/utils/projectKey";
 import { getOnboardingPath } from "@/utils/onboarding";
 import OnboardingShell from "../components/OnboardingShell";
 import { useOnboardingGate } from "../hooks/useOnboardingGate";
+
+const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
+  { value: "SOFTWARE", label: "Software" },
+  { value: "BUSINESS", label: "Business" },
+  { value: "MARKETING", label: "Marketing" },
+  { value: "CUSTOM", label: "Custom" },
+];
 
 export default function FirstProjectPage() {
   const router = useRouter();
@@ -20,10 +29,13 @@ export default function FirstProjectPage() {
 
   const [form, setForm] = useState<OnboardingFirstProjectPayload>({
     name: "",
+    key: "",
     description: "",
+    projectType: "SOFTWARE",
     dueDate: "",
     status: "ACTIVE",
   });
+  const [keyTouched, setKeyTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
 
@@ -33,6 +45,14 @@ export default function FirstProjectPage() {
     if (!onboarding) return;
     setOnboarding(onboarding);
     router.replace(getOnboardingPath(onboarding.currentStep));
+  };
+
+  const handleNameChange = (name: string) => {
+    setForm((prev) => ({
+      ...prev,
+      name,
+      key: keyTouched ? prev.key : suggestProjectKey(name),
+    }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -45,11 +65,22 @@ export default function FirstProjectPage() {
       return;
     }
 
+    const key = form.key.trim().toUpperCase();
+    if (!/^[A-Z][A-Z0-9]{1,9}$/.test(key)) {
+      showToast(
+        "Project key must be 2–10 letters/numbers, starting with a letter.",
+        "error"
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const onboarding = await onboardingService.createFirstProject({
         name,
+        key,
         description: form.description?.trim() || undefined,
+        projectType: form.projectType || "SOFTWARE",
         dueDate: form.dueDate || undefined,
         status: "ACTIVE",
       });
@@ -105,9 +136,29 @@ export default function FirstProjectPage() {
           <input
             id="project-name"
             className="form-input"
-            placeholder="Website Redesign"
+            placeholder="TaskFlow V2"
             value={form.name}
-            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+            onChange={(e) => handleNameChange(e.target.value)}
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="project-key">
+            Key
+          </label>
+          <input
+            id="project-key"
+            className="form-input"
+            placeholder="TF"
+            maxLength={10}
+            value={form.key}
+            onChange={(e) => {
+              setKeyTouched(true);
+              setForm((prev) => ({
+                ...prev,
+                key: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+              }));
+            }}
           />
         </div>
 
@@ -125,6 +176,26 @@ export default function FirstProjectPage() {
               setForm((prev) => ({ ...prev, description: e.target.value }))
             }
           />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Project type</label>
+          <select
+            className="form-input"
+            value={form.projectType || "SOFTWARE"}
+            onChange={(e) =>
+              setForm((prev) => ({
+                ...prev,
+                projectType: e.target.value as ProjectType,
+              }))
+            }
+          >
+            {PROJECT_TYPES.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">

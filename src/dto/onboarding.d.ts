@@ -54,7 +54,9 @@ export interface OnboardingInvitesPayload {
 
 export interface OnboardingFirstProjectPayload {
   name: string;
+  key: string;
   description?: string;
+  projectType?: "SOFTWARE" | "BUSINESS" | "MARKETING" | "CUSTOM";
   dueDate?: string;
   status?: "ACTIVE" | "IN_REVIEW" | "PLANNING" | "PAUSED" | "COMPLETED" | "ARCHIVED";
 }

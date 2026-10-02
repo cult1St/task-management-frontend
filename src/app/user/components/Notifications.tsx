@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { Bell } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import { createStompClient, notificationsDestination } from "@/utils/stomp";
@@ -123,6 +124,17 @@ export default function Notifications() {
 
         setNotifications((prev) => [notification, ...prev]);
         setUnreadCount((prev) => prev + 1);
+
+        // Off-page chat alerts (dashboard, etc.) when BE emits CHAT_MESSAGE.
+        if (notification.type === "CHAT_MESSAGE") {
+          const title = notification.title || "New chat message";
+          const body = notification.message || "";
+          window.dispatchEvent(
+            new CustomEvent("taskflow:chat-notification", {
+              detail: { title, body, notification },
+            })
+          );
+        }
       } catch (err) {
         console.error("[Notifications] ❌ Failed to parse message", err);
       }
@@ -229,20 +241,7 @@ export default function Notifications() {
         onClick={() => setOpen((prev) => !prev)}
         aria-label="Notifications"
       >
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-          <path d="M13.73 21a2 2 0 01-3.46 0" />
-        </svg>
+        <Bell size={18} strokeWidth={1.75} aria-hidden />
         {hasUnread ? <span className="notif-dot" /> : null}
         {hasUnread ? (
           <span className="notif-count" aria-live="polite">

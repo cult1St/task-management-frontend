@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
+import { useWorkspace } from "@/context/workspace-context";
 import invitationsService from "@/services/invitations.service";
 import { InvitationStatus, ProjectInvitationDTO } from "@/dto/invitations";
 
@@ -15,8 +17,27 @@ const STATUS_COLOR: Record<InvitationStatus, string> = {
   REMOVED: "var(--slate-400)",
 };
 
+function invitationTitle(invite: ProjectInvitationDTO) {
+  if (invite.workspaceName) return invite.workspaceName;
+  if (invite.projectName) return invite.projectName;
+  if (invite.workspaceId) return `Workspace #${invite.workspaceId}`;
+  if (invite.projectId) return `Project #${invite.projectId}`;
+  return "Invitation";
+}
+
+function invitationHref(invite: ProjectInvitationDTO) {
+  if (invite.workspaceId || invite.workspaceName) return "/user/team";
+  if (invite.projectId) return `/user/projects?projectId=${invite.projectId}`;
+  return "/user/invitations";
+}
+
+function isWorkspaceInvite(invite: ProjectInvitationDTO) {
+  return Boolean(invite.workspaceId || invite.workspaceName);
+}
+
 export default function InvitationsPage() {
   const { toasts, showToast, removeToast } = useToast();
+  const { refresh: refreshWorkspaces } = useWorkspace();
   const [activeTab, setActiveTab] = useState<InvitationTab>("received");
   const [received, setReceived] = useState<ProjectInvitationDTO[]>([]);
   const [sent, setSent] = useState<ProjectInvitationDTO[]>([]);
@@ -65,6 +86,15 @@ export default function InvitationsPage() {
         action === "ACCEPT" ? "Invitation accepted." : "Invitation rejected.",
         "success"
       );
+
+      // Membership list drives the sidebar switcher — refresh after join.
+      if (action === "ACCEPT") {
+        try {
+          await refreshWorkspaces();
+        } catch {
+          // Switcher will catch up on next navigation/auth refresh.
+        }
+      }
     } catch (err) {
       const message =
         (err as { message?: string })?.message || "Could not update invitation.";
@@ -96,15 +126,15 @@ export default function InvitationsPage() {
 
   const current = activeTab === "received" ? received : sent;
 
-
-  console.log(isSubmitting);
   return (
     <div>
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
       <div className="page-header">
         <h1 className="page-title">Invitations</h1>
-        <p className="page-subtitle">Manage project invitations and collaboration access</p>
+        <p className="page-subtitle">
+          Workspace invites and project assignments
+        </p>
       </div>
 
       <div className="tasks-toolbar">
@@ -140,18 +170,25 @@ export default function InvitationsPage() {
               <div key={invite.id} className="task-item">
                 <div className="task-info">
                   <div className="task-name">
-                    <a
-                      href={`/user/projects?projectId=${invite.projectId}`}
+                    <Link
+                      href={invitationHref(invite)}
                       style={{ color: "inherit", textDecoration: "underline" }}
                     >
-                      {invite.projectName}
-                    </a>
+                      {invitationTitle(invite)}
+                    </Link>
+                    <span
+                      className="chip"
+                      style={{ marginLeft: "0.5rem", fontSize: "0.7rem" }}
+                    >
+                      {isWorkspaceInvite(invite) ? "Workspace" : "Project"}
+                    </span>
                   </div>
                   <div className="task-meta-row">
                     <span className="task-due">
                       {activeTab === "received"
-                        ? `Invited by ${invite.inviterName || "Project owner"}`
+                        ? `Invited by ${invite.inviterName || "someone"}`
                         : `Invited ${invite.invitedUserName || invite.invitedUserEmail || "user"}`}
+                      {invite.role ? ` · ${invite.role}` : ""}
                     </span>
                     <span
                       className="chip"
@@ -202,7 +239,7 @@ export default function InvitationsPage() {
               <div className="empty-state-desc">
                 {activeTab === "received"
                   ? "You have no incoming invitations right now."
-                  : "No project invitations have been sent yet."}
+                  : "Invite people from Team → Invite to workspace."}
               </div>
             </div>
           )}

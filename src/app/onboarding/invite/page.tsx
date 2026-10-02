@@ -10,6 +10,7 @@ import { OnboardingInviteItem } from "@/dto/onboarding";
 import { getOnboardingPath } from "@/utils/onboarding";
 import OnboardingShell from "../components/OnboardingShell";
 import { useOnboardingGate } from "../hooks/useOnboardingGate";
+import { Plus, X } from "lucide-react";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -117,7 +118,7 @@ export default function InviteTeammatesPage() {
     <OnboardingShell
       currentStep="INVITE_TEAM"
       title="Invite teammates"
-      subtitle="Optional — you can always invite people later from Projects."
+      subtitle="Optional — you can always invite people later from Team."
       toasts={toasts}
       onDismissToast={removeToast}
     >
@@ -150,13 +151,14 @@ export default function InviteTeammatesPage() {
               disabled={invites.length <= 1}
               aria-label="Remove invite row"
             >
-              ×
+              <X size={16} strokeWidth={2} aria-hidden />
             </button>
           </div>
         ))}
 
         <button type="button" className="btn btn-secondary" onClick={addRow}>
-          + Add another
+          <Plus size={16} strokeWidth={2} aria-hidden className="btn-inline-icon" />
+          Add another
         </button>
 
         <button

@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CldUploadWidget } from "next-cloudinary";
 import { useAuth } from "@/context/auth-context";
+import { useWorkspace } from "@/context/workspace-context";
 import { AppearanceSettingsPayload, IntegrationSettingsPayload, NotificationPreferencesPayload, SecuritySettingsPayload, UserProfilePayload, WorkspaceSettingsPayload } from "@/dto/user";
 import userService from "@/services/user.service";
+import workspaceService from "@/services/workspace.service";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 
@@ -33,6 +35,11 @@ interface LoadedUserShape {
 export default function SettingsPage() {
   const router = useRouter();
   const { user, logout, refreshUser } = useAuth();
+  const {
+    workspace: currentWorkspace,
+    canManageWorkspace,
+    refresh: refreshWorkspace,
+  } = useWorkspace();
   const { toasts, showToast, removeToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
@@ -99,6 +106,12 @@ export default function SettingsPage() {
         .join("") || "TF",
     [displayName]
   );
+
+  useEffect(() => {
+    if (currentWorkspace?.name) {
+      setWorkspace({ workspaceName: currentWorkspace.name });
+    }
+  }, [currentWorkspace?.name]);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -322,15 +335,33 @@ export default function SettingsPage() {
   };
 
   const handleSaveWorkspace = async () => {
+    if (!canManageWorkspace && currentWorkspace) {
+      showToast("Only workspace owners and admins can rename the workspace.", "error");
+      return;
+    }
+
+    const name = workspace.workspaceName.trim();
+    if (name.length < 2) {
+      showToast("Workspace name must be at least 2 characters.", "error");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await userService.updateWorkspace(workspace);
+      await workspaceService.updateCurrent({ name });
+      await refreshWorkspace();
       showToast("Workspace name saved.", "success");
     } catch (err) {
-      const message =
-        (err as { message?: string })?.message ||
-        "Could not update workspace name.";
-      showToast(message, "error");
+      // Fallback for backends that still use settings workspace endpoint.
+      try {
+        await userService.updateWorkspace({ workspaceName: name });
+        showToast("Workspace name saved.", "success");
+      } catch {
+        const message =
+          (err as { message?: string })?.message ||
+          "Could not update workspace name.";
+        showToast(message, "error");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -732,6 +763,9 @@ export default function SettingsPage() {
               <div className="settings-section-title">Workspace</div>
               <div className="settings-section-sub">
                 Update your current workspace details.
+                {!canManageWorkspace && currentWorkspace
+                  ? " Only owners and admins can rename the workspace."
+                  : ""}
               </div>
 
               <div className="form-group" style={{ marginBottom: "1.5rem" }}>
@@ -740,6 +774,7 @@ export default function SettingsPage() {
                   type="text"
                   className="form-input"
                   value={workspace.workspaceName}
+                  disabled={Boolean(currentWorkspace) && !canManageWorkspace}
                   onChange={(e) =>
                     setWorkspace((prev) => ({
                       ...prev,
@@ -752,7 +787,9 @@ export default function SettingsPage() {
               <button
                 className="btn btn-primary"
                 onClick={handleSaveWorkspace}
-                disabled={isSaving}
+                disabled={
+                  isSaving || (Boolean(currentWorkspace) && !canManageWorkspace)
+                }
               >
                 {isSaving ? "Saving..." : "Save Workspace"}
               </button>

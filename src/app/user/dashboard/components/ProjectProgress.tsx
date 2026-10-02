@@ -1,10 +1,14 @@
+import { FolderKanban } from "lucide-react";
 import { Project } from "@/dto/dashboard";
 
 export function ProjectProgress({ projects }: { projects: Project[] }) {
   return (
     <div className="progress-card">
       <div className="card-header" style={{ padding: "0 0 1rem" }}>
-        <span className="card-title">📁 Project Progress</span>
+        <span className="card-title">
+          <FolderKanban size={16} strokeWidth={1.75} aria-hidden className="inline-icon" />
+          Project Progress
+        </span>
       </div>
       <div>
         {projects.map((p, i) => (

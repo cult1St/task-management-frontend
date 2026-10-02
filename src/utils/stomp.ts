@@ -33,9 +33,14 @@ export function createStompClient() {
   const token = sessionStorage.getItem("authToken");
 
   const client = new Client({
-    webSocketFactory: () => new SockJS(socketUrl),
+    // Prefer native WebSocket — xhr-streaming/polling adds multi-second latency.
+    webSocketFactory: () =>
+      new SockJS(socketUrl, undefined, {
+        transports: ["websocket", "xhr-streaming", "xhr-polling"],
+        timeout: 5000,
+      }),
     connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
-    reconnectDelay: 5000,
+    reconnectDelay: 2000,
     heartbeatIncoming: 10000,
     heartbeatOutgoing: 10000,
     debug: (message) => {
@@ -50,4 +55,11 @@ export function createStompClient() {
 
 export const notificationsDestination =
   process.env.NEXT_PUBLIC_WS_NOTIFICATIONS_DEST || "/user/queue/notifications";
+
+export const chatUserDestination =
+  process.env.NEXT_PUBLIC_WS_CHAT_DEST || "/user/queue/chat";
+
+export function chatChannelTopic(workspaceId: number | string, channelId: number | string) {
+  return `/topic/workspaces.${workspaceId}.channels.${channelId}`;
+}
 

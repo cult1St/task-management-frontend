@@ -111,26 +111,15 @@ export default function VerifyEmailPage() {
     <OnboardingShell
       currentStep="VERIFY_EMAIL"
       title="Verify your email"
-      subtitle={`We sent a 6-digit code to ${email || "your email"}.`}
+      subtitle={
+        email
+          ? `We sent a 6-digit verification code to ${email}.`
+          : "We sent a 6-digit verification code to your email."
+      }
       toasts={toasts}
       onDismissToast={removeToast}
     >
       <form className="auth-form" onSubmit={handleVerify}>
-        <div className="form-group">
-          <label className="form-label" htmlFor="verify-email">
-            Email
-          </label>
-          <input
-            id="verify-email"
-            className="form-input"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="alex@company.com"
-          />
-        </div>
-
         <div className="form-group">
           <label className="form-label" htmlFor="verify-code">
             Verification code

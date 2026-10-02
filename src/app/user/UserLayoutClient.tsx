@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import Notifications from "./components/Notifications";
+import ChatNotifyListener from "./components/ChatNotifyListener";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/context/auth-context";
 import { getOnboardingPath } from "@/utils/onboarding";
+import { Search, Plus } from "lucide-react";
 
 const MOBILE_BREAKPOINT = 900;
 
@@ -162,7 +164,7 @@ export default function UserLayoutClient({
           </button>
 
           <div className="topbar-search">
-            <span className="topbar-search-icon">🔍</span>
+            <Search className="topbar-search-icon" size={16} strokeWidth={1.75} aria-hidden />
             <input
               type="text"
               placeholder="Search tasks, projects, teammates..."
@@ -175,10 +177,12 @@ export default function UserLayoutClient({
               className="btn btn-primary btn-sm"
               onClick={() => router.push('/user/tasks?create=true')}
             >
-              + New Task
+              <Plus size={14} strokeWidth={2} aria-hidden className="btn-inline-icon" />
+              New Task
             </button>
 
             <Notifications />
+            <ChatNotifyListener />
           </div>
         </div>
 

@@ -1,3 +1,4 @@
+import { Users } from "lucide-react";
 import { TeamMember } from "@/dto/dashboard";
 
 export function TeamCard({ members }: { members: TeamMember[] }) {
@@ -10,7 +11,10 @@ export function TeamCard({ members }: { members: TeamMember[] }) {
   return (
     <div className="card">
       <div className="card-header">
-        <span className="card-title">👥 Team</span>
+        <span className="card-title">
+          <Users size={16} strokeWidth={1.75} aria-hidden className="inline-icon" />
+          Team
+        </span>
         <button className="btn btn-secondary btn-sm">View All</button>
       </div>
       <div style={{ padding: "0.75rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>

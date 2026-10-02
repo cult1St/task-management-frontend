@@ -8,6 +8,7 @@ import { useAuth } from "@/context/auth-context";
 import ToastContainer from "@/components/ToastContainer";
 import { useToast } from "@/hooks/useToast";
 import { getOnboardingPath, setPendingVerifyEmail } from "@/utils/onboarding";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -132,8 +133,13 @@ export default function LoginPage() {
                 type="button"
                 className="form-input-toggle"
                 onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                👁
+                {showPassword ? (
+                  <EyeOff size={18} strokeWidth={1.75} aria-hidden />
+                ) : (
+                  <Eye size={18} strokeWidth={1.75} aria-hidden />
+                )}
               </button>
             </div>
             {errors.password && (
@@ -153,7 +159,12 @@ export default function LoginPage() {
               opacity: isLoading ? 0.7 : 1,
             }}
           >
-            {isLoading ? "Signing In..." : "Sign In →"}
+            {isLoading ? "Signing In..." : (
+              <>
+                Sign In
+                <ArrowRight size={16} strokeWidth={2} aria-hidden className="btn-inline-icon" style={{ marginLeft: "0.4rem", marginRight: 0 }} />
+              </>
+            )}
           </button>
         </form>
 
